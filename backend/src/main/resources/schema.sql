@@ -1,4 +1,4 @@
-CREATE TABLE kanji (
+CREATE TABLE IF NOT EXISTS kanji (
     id SERIAL PRIMARY KEY,
     kanji TEXT UNIQUE NOT NULL,
     on_reading TEXT[],
@@ -13,7 +13,7 @@ CREATE TABLE kanji (
     metadata JSONB          -- extensible: strokes SVGs, media usage, etc.
 );
 
-CREATE TABLE compounds (
+CREATE TABLE IF NOT EXISTS compounds (
     id SERIAL PRIMARY KEY,
     compound TEXT UNIQUE NOT NULL,
     reading TEXT[],
@@ -22,17 +22,17 @@ CREATE TABLE compounds (
     jlpt INT
 );
 
-CREATE TABLE kanji_compounds (
+CREATE TABLE IF NOT EXISTS kanji_compounds (
     kanji_id INT REFERENCES kanji(id), 
     compound_id INT REFERENCES compounds(id),
     PRIMARY KEY (kanji_id, compound_id)
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY
 );
 
-CREATE TABLE user_stats (
+CREATE TABLE IF NOT EXISTS user_stats (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id),
     kanji_id INT REFERENCES kanji(id),
