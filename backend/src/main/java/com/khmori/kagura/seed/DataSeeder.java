@@ -2,12 +2,14 @@ package com.khmori.kagura.seed;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import com.khmori.kagura.entity.Compound;
 import com.khmori.kagura.entity.Kanji;
 import com.khmori.kagura.repository.CompoundRepository;
 import com.khmori.kagura.repository.KanjiRepository;
@@ -17,8 +19,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
-    private static final String KANJIDIC_PATH = "../dicts/kanjidic2-en-3.6.2.json";   
-    private static final String JMDICT_PATH = "../dicts/jmdict-eng-3.6.2.json";                                                               
+    private static final String KANJIDIC_PATH = "../dicts/kanjidic2-en-3.6.2.json";
+    private static final String JMDICT_PATH = "../dicts/jmdict-eng-3.6.2.json";
 
     private final KanjiRepository kanjiRepository;
     private final CompoundRepository compoundRepository;
@@ -31,15 +33,17 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        kanjiRepository.deleteAll();
         if (kanjiRepository.count() > 0) {
-            System.out.println("Database already seeded.");
-            return;
+            System.out.println("Kanji table already seeded.");
+        } else {
+            seedKanji();
         }
 
-        seedKanji();
-        seedCompounds();
-        seedKanjiCompounds();
+        if (compoundRepository.count() > 0) {
+            System.out.println("Compounds table already seeded.");
+        } else {
+            seedCompounds();
+        }
     }
 
     private void seedKanji() throws Exception {
@@ -49,7 +53,8 @@ public class DataSeeder implements CommandLineRunner {
         int counter = 0;
         for (JsonNode character : characters) {
             Kanji kanji = new Kanji();
-            if (counter > 0) return;
+            if (counter > 0)
+                return;
 
             // Kanji
             String literal = character.get("literal").asText();
@@ -66,8 +71,10 @@ public class DataSeeder implements CommandLineRunner {
                 String type = reading.get("type").asText();
                 String value = reading.get("value").asText();
 
-                if (type.equals("ja_on")) onReadings.add(value);
-                else if (type.equals("ja_kun")) kunReadings.add(value);
+                if (type.equals("ja_on"))
+                    onReadings.add(value);
+                else if (type.equals("ja_kun"))
+                    kunReadings.add(value);
             }
             kanji.setOnReading(onReadings.toArray(new String[0]));
             kanji.setKunReading(kunReadings.toArray(new String[0]));
@@ -103,8 +110,10 @@ public class DataSeeder implements CommandLineRunner {
                 String type = radical.get("type").asText();
                 int value = radical.get("value").asInt();
 
-                if (type.equals("classical")) kanji.setRadicalClassical(value);
-                else if (type.equals("nelson_c")) kanji.setRadicalNelson(value);
+                if (type.equals("classical"))
+                    kanji.setRadicalClassical(value);
+                else if (type.equals("nelson_c"))
+                    kanji.setRadicalNelson(value);
             }
 
             kanjiRepository.save(kanji);
@@ -113,18 +122,63 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedCompounds() throws Exception {
         JsonNode root = mapper.readTree(new File(JMDICT_PATH));
+        JsonNode words = root.path("words");
+        Set<String> seen = new HashSet<>();
+
+        for (JsonNode word : words) {
+            JsonNode kanjiEntry = extractNiji(word.get("kanji"));
+            if (kanjiEntry == null) continue;
+
+            String kanjiText = kanjiEntry.get("text").asText();
+            if (!seen.add(kanjiText)) continue;
+
+            Compound compound = new Compound();
+
+            // Compound
+            compound.setCompound(kanjiText);
+
+            // Readings
+            List<String> readings = new ArrayList<>();
+            for (JsonNode kana : word.get("kana")) {
+                JsonNode appliesTo = kana.get("appliesToKanji");
+                for (JsonNode target : appliesTo) {
+                    if (target.asText().equals("*") || target.asText().equals(kanjiText)) {
+                        readings.add(kana.get("text").asText());
+                    }
+                }
+            }
+            compound.setReading(readings.toArray(new String[0]));
+
+            // Meanings
+            List<String> meanings = new ArrayList<>();
+            for (JsonNode sense : word.get("sense")) {
+                for (JsonNode gloss : sense.get("gloss")) {
+                    meanings.add(gloss.get("text").asText());
+                }
+            }
+            compound.setMeaning(meanings.toArray(new String[0]));
+
+            // Common
+            compound.setCommon(kanjiEntry.get("common").asBoolean());
+
+            compoundRepository.save(compound);
+        }
     }
 
     private void seedKanjiCompounds() {
-
     }
 
-    private void printNode(JsonNode node) {
-        Iterator<String> fieldNames = node.fieldNames();
-        while (fieldNames.hasNext()) {
-            String fieldName = fieldNames.next();
-            System.out.println("Property Name: " + fieldName);
+    private JsonNode extractNiji(JsonNode kanjiEntries) {
+        for (JsonNode entry : kanjiEntries) {
+            if (isNiji(entry.get("text").asText()))
+                return entry;
         }
+        return null;
+    }
 
+    private boolean isNiji(String text) {
+        return text.length() == 2
+                && Character.UnicodeBlock.of(text.charAt(0)) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
+                && Character.UnicodeBlock.of(text.charAt(1)) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS;
     }
 }
