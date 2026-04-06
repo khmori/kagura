@@ -30,8 +30,10 @@ public class Kanji {
 
     private Integer grade;
 
-    private Integer jlpt;
+    @Column(name = "jlpt_level") 
+    private Integer jlptLevel;
 
+    @Column(name = "stroke_count")
     private Integer strokeCount;
     
     private Integer frequency;
