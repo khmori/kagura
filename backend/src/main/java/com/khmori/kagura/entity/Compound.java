@@ -1,5 +1,8 @@
 package com.khmori.kagura.entity;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -25,4 +28,7 @@ public class Compound {
 
     @Column
     private Integer jlpt;
+
+    @ManyToMany(mappedBy = "compounds")
+    private Set<Kanji> kanji= new HashSet<>();
 }

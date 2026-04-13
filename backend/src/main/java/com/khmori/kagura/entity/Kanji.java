@@ -1,6 +1,8 @@
 package com.khmori.kagura.entity;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -47,4 +49,12 @@ public class Kanji {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> metadata;
+
+    @ManyToMany(cascade = CascadeType.ALL)
+    @JoinTable(
+        name = "kanji_compounds",
+        joinColumns = @JoinColumn(name = "kanji_id"),
+        inverseJoinColumns = @JoinColumn(name = "compound_id")
+    )
+    private Set<Compound> compounds = new HashSet<>();
 }

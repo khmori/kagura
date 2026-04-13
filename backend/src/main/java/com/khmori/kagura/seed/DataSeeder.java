@@ -4,10 +4,12 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.khmori.kagura.entity.Compound;
 import com.khmori.kagura.entity.Kanji;
@@ -32,29 +34,29 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
         if (kanjiRepository.count() > 0) {
             System.out.println("Kanji table already seeded.");
-        } else {
-            seedKanji();
+            return;
         }
-
-        if (compoundRepository.count() > 0) {
-            System.out.println("Compounds table already seeded.");
-        } else {
-            seedCompounds();
-        }
+        kanjiRepository.deleteAll();
+        kanjiRepository.flush();
+        compoundRepository.deleteAll();
+        compoundRepository.flush();
+        seedKanji();
+        seedCompounds();
+        seedKanjiCompounds();
     }
 
     private void seedKanji() throws Exception {
+        System.out.println("Seeding kanji table...");
+
         JsonNode root = mapper.readTree(new File(KANJIDIC_PATH));
         JsonNode characters = root.get("characters");
 
-        int counter = 0;
         for (JsonNode character : characters) {
             Kanji kanji = new Kanji();
-            if (counter > 0)
-                return;
 
             // Kanji
             String literal = character.get("literal").asText();
@@ -118,9 +120,13 @@ public class DataSeeder implements CommandLineRunner {
 
             kanjiRepository.save(kanji);
         }
+
+        System.out.println("Kanji table seeded.");
     }
 
     private void seedCompounds() throws Exception {
+        System.out.println("Seeding compound table...");
+
         JsonNode root = mapper.readTree(new File(JMDICT_PATH));
         JsonNode words = root.path("words");
         Set<String> seen = new HashSet<>();
@@ -163,9 +169,39 @@ public class DataSeeder implements CommandLineRunner {
 
             compoundRepository.save(compound);
         }
+
+        System.out.println("Compound table seeded.");
     }
 
+    // TODO: optimize (map kanji : compounds for less DB queries)
     private void seedKanjiCompounds() {
+        System.out.println("Seeding kanji-compounds join table...");
+    
+        List<Compound> compounds = compoundRepository.findAll();
+
+        int counter = 0;
+
+        for (Compound compound : compounds) {
+            String text = compound.getCompound();
+
+            for (int i = 0; i < text.length(); i++) {
+                String kanjiChar = String.valueOf(text.charAt(i));
+                
+                Optional<Kanji> opt = kanjiRepository.findByKanji(kanjiChar);
+                if (!opt.isPresent()) {
+                    continue;
+                }
+
+                Kanji kanji = opt.get();
+                kanji.getCompounds().add(compound);
+                kanjiRepository.save(kanji);
+
+                System.out.println(compound.getCompound() + ": " + kanji.getKanji());
+            }
+
+        }
+
+        System.out.println("Kanji-compounds seeded.");
     }
 
     private JsonNode extractNiji(JsonNode kanjiEntries) {
