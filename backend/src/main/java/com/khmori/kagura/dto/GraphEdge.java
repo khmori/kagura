@@ -13,6 +13,4 @@ public class GraphEdge {
     private List<String> reading;
     private List<String> meaning;
     private Boolean common;
-    private Boolean frontier;
-    private Integer rank;
 }
