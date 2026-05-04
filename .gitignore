@@ -13,6 +13,13 @@
 *.tar.gz
 *.rar
 
+# Scripts
+scripts/
+
+# Testing
+testing/
+sample_data/
+
 # Output files
 backend/target/
 
