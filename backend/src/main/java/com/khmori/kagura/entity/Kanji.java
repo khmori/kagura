@@ -8,11 +8,13 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "kanji")
-@Data
+@Getter
+@Setter
 public class Kanji {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

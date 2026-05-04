@@ -4,11 +4,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "compounds")
-@Data
+@Getter
+@Setter
 public class Compound {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
