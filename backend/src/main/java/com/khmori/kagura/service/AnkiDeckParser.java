@@ -9,7 +9,11 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -34,20 +38,33 @@ public class AnkiDeckParser {
     };
 
     /**
-     * Mature-card definition: in the review queue (queue >= 2) AND interval >= 21 days.
-     * No deck filter — every deck in the uploaded .apkg contributes.
+     * Pull every reviewed card (type > 0; excludes new). The score curve naturally
+     * weights low-interval cards toward 0, so we don't need a hard cutoff.
+     * Front field only ({@code flds.split("")[0]}) — the prompt side, where
+     * mastery is actually being tested.
      */
-    private static final String MATURE_QUERY = """
-        SELECT DISTINCT n.flds
+    private static final String SCORING_QUERY = """
+        SELECT n.flds, c.ivl
         FROM cards c JOIN notes n ON c.nid = n.id
-        WHERE c.queue >= 2 AND c.ivl >= 21
+        WHERE c.type > 0
         """;
 
-    public Set<String> extractKnownKanji(MultipartFile apkg) throws IOException, SQLException {
+    /** Minimum cards containing a kanji before we trust the average interval. */
+    private static final int MIN_CARDS_FOR_SCORE = 3;
+    /** Interval normalization (days). 360-day avg ⇒ x=1.0 ⇒ score=0.75. */
+    private static final double IVL_NORMALIZE_DAYS = 360.0;
+    /** Field separator inside Anki notes. */
+    private static final char FIELD_DELIMITER = '';
+
+    /**
+     * Returns kanji → mastery score in [0.0, 1.0]. Kanji appearing in fewer than
+     * {@value #MIN_CARDS_FOR_SCORE} cards are omitted entirely.
+     */
+    public Map<String, Double> extractKanjiScores(MultipartFile apkg) throws IOException, SQLException {
         Path tempDb = Files.createTempFile("kagura-anki-", ".sqlite");
         try {
             extractCollectionDb(apkg, tempDb);
-            return queryKnownKanji(tempDb);
+            return computeScores(tempDb);
         } finally {
             Files.deleteIfExists(tempDb);
         }
@@ -89,25 +106,45 @@ public class AnkiDeckParser {
         return names;
     }
 
-    private Set<String> queryKnownKanji(Path dbPath) throws SQLException {
-        Set<String> known = new HashSet<>();
+    private Map<String, Double> computeScores(Path dbPath) throws SQLException {
+        Map<String, List<Integer>> kanjiIvls = new HashMap<>();
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
-            PreparedStatement ps = conn.prepareStatement(MATURE_QUERY);
-            ResultSet rs = ps.executeQuery()) {
+             PreparedStatement ps = conn.prepareStatement(SCORING_QUERY);
+             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 String flds = rs.getString(1);
-                if (flds != null) extractKanji(flds, known);
+                int ivl = rs.getInt(2);
+                if (flds == null) continue;
+                String front = frontField(flds);
+                for (String kanji : extractKanji(front)) {
+                    kanjiIvls.computeIfAbsent(kanji, k -> new ArrayList<>()).add(ivl);
+                }
             }
         }
-        return known;
+        Map<String, Double> scores = new HashMap<>();
+        for (Map.Entry<String, List<Integer>> e : kanjiIvls.entrySet()) {
+            List<Integer> ivls = e.getValue();
+            if (ivls.size() < MIN_CARDS_FOR_SCORE) continue;
+            double avg = ivls.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+            double x = avg / IVL_NORMALIZE_DAYS;
+            scores.put(e.getKey(), 1.0 - 1.0 / Math.pow(x + 1.0, 2));
+        }
+        return scores;
     }
 
-    private void extractKanji(String text, Set<String> sink) {
+    private String frontField(String flds) {
+        int idx = flds.indexOf(FIELD_DELIMITER);
+        return idx < 0 ? flds : flds.substring(0, idx);
+    }
+
+    private List<String> extractKanji(String text) {
+        List<String> out = new ArrayList<>();
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             if (Character.UnicodeBlock.of(c) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS) {
-                sink.add(String.valueOf(c));
+                out.add(String.valueOf(c));
             }
         }
+        return out;
     }
 }

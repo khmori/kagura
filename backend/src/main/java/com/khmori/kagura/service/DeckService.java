@@ -5,7 +5,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,6 +23,8 @@ import com.khmori.kagura.repository.KanjiRepository;
 @Service
 public class DeckService {
 
+    public static final double DEFAULT_THRESHOLD = 0.3;
+
     private final AnkiDeckParser parser;
     private final KanjiRepository kanjiRepository;
     private final CompoundRepository compoundRepository;
@@ -33,8 +37,12 @@ public class DeckService {
         this.compoundRepository = compoundRepository;
     }
 
-    public GraphResponse buildGraph(MultipartFile apkg) throws IOException, SQLException {
-        Set<String> known = parser.extractKnownKanji(apkg);
+    public GraphResponse buildGraph(MultipartFile apkg, double threshold) throws IOException, SQLException {
+        Map<String, Double> scores = parser.extractKanjiScores(apkg);
+        Set<String> known = scores.entrySet().stream()
+            .filter(e -> e.getValue() >= threshold)
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toSet());
         if (known.isEmpty()) return emptyGraph();
 
         List<Integer> ids = compoundRepository.findIdsAllKanjiKnown2Char(known);
@@ -44,16 +52,17 @@ public class DeckService {
         List<Kanji> kanji = kanjiRepository.findByKanjiIn(known);
 
         GraphResponse res = new GraphResponse();
-        res.setNodes(kanji.stream().map(DeckService::toNode).toList());
+        res.setNodes(kanji.stream().map(k -> toNode(k, scores)).toList());
         res.setEdges(compounds.stream().map(DeckService::toEdge).toList());
         return res;
     }
 
-    private static GraphNode toNode(Kanji k) {
+    private static GraphNode toNode(Kanji k, Map<String, Double> scores) {
         GraphNode n = new GraphNode();
         n.setId(k.getKanji());
         n.setLabel(k.getKanji());
         n.setKnown(true);
+        n.setScore(scores.get(k.getKanji()));
         n.setMeaning(arrayToList(k.getMeaning()));
         n.setJlptLevel(k.getJlptLevel());
         n.setStrokeCount(k.getStrokeCount());
