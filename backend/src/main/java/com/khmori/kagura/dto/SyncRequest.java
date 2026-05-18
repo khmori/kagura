@@ -3,6 +3,7 @@ package com.khmori.kagura.dto;
 import java.util.List;
 
 public class SyncRequest {
-    public Integer userId;
+    public String provider;
+    public String providerUserId;
     public List<IncomingNote> notes;
 }

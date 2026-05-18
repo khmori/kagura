@@ -36,9 +36,11 @@ public class User {
     @Column(name = "provider_user_id", nullable = false)
     private String providerUserId;
 
+    // { "<modelName>": { "<slot>": "<anki field name>", ... }, ... }
+    // Slot names are Kagura's vocabulary (expression, sentence, sentenceAudio, ...).
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "field_mapping", columnDefinition = "jsonb", nullable = false)
-    private Map<String, Object> fieldMapping = new HashMap<>();
+    private Map<String, Map<String, String>> fieldMapping = new HashMap<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

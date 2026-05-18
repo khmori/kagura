@@ -30,12 +30,7 @@ CREATE TABLE IF NOT EXISTS kanji_compounds (
 );
 
 ------------------------------ user data ------------------------------
-DROP TABLE IF EXISTS user_stats;
-DROP TABLE IF EXISTS user_kanji;
-DROP TABLE IF EXISTS user_vocab;
-DROP TABLE IF EXISTS users;
-
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id               SERIAL PRIMARY KEY,
     email            TEXT NOT NULL,
     provider         TEXT NOT NULL,                  -- 'google' | 'discord' | 'github'
@@ -49,7 +44,7 @@ CREATE TABLE users (
 
 -- one row per Anki note the user has synced
 -- Cards (the scheduling units) collapse into this row — usually 1:1, sometimes N:1.
-CREATE TABLE user_vocab (
+CREATE TABLE IF NOT EXISTS user_vocab (
     id               SERIAL PRIMARY KEY,
     user_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
@@ -57,9 +52,11 @@ CREATE TABLE user_vocab (
     anki_model_name  TEXT NOT NULL,                  -- needed to pick the right field mapping
 
     -- extracted via the user's field_mapping at sync time
-    expression       TEXT NOT NULL,                  -- join key against compounds.compound
-    sentence_filled  BOOLEAN NOT NULL,
-    audio_filled     BOOLEAN NOT NULL,
+    expression              TEXT NOT NULL,                  -- join key against compounds.compound
+    sentence_filled         BOOLEAN NOT NULL DEFAULT FALSE,
+    expression_audio_filled BOOLEAN NOT NULL DEFAULT FALSE,
+    sentence_audio_filled   BOOLEAN NOT NULL DEFAULT FALSE,
+    image_filled            BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- reference compounds table for JMDICT readings/meanings/etc.
     compound_id      INT REFERENCES compounds(id) ON DELETE SET NULL,
@@ -81,12 +78,12 @@ CREATE TABLE user_vocab (
     UNIQUE (user_id, anki_note_id)
 );
 
-CREATE INDEX user_vocab_user_status     ON user_vocab(user_id, retention_status);
-CREATE INDEX user_vocab_user_compound   ON user_vocab(user_id, compound_id);
-CREATE INDEX user_vocab_user_expression ON user_vocab(user_id, expression);
+CREATE INDEX IF NOT EXISTS user_vocab_user_status     ON user_vocab(user_id, retention_status);
+CREATE INDEX IF NOT EXISTS user_vocab_user_compound   ON user_vocab(user_id, compound_id);
+CREATE INDEX IF NOT EXISTS user_vocab_user_expression ON user_vocab(user_id, expression);
 
 -- per-kanji proficiency
-CREATE TABLE user_kanji (
+CREATE TABLE IF NOT EXISTS user_kanji (
     id                SERIAL PRIMARY KEY,
     user_id           INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     kanji_id          INT NOT NULL REFERENCES kanji(id) ON DELETE CASCADE,
@@ -99,4 +96,4 @@ CREATE TABLE user_kanji (
     UNIQUE (user_id, kanji_id)
 );
 
-CREATE INDEX user_kanji_user_known ON user_kanji(user_id, known);
+CREATE INDEX IF NOT EXISTS user_kanji_user_known ON user_kanji(user_id, known);

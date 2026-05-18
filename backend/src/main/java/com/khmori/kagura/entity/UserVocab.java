@@ -47,10 +47,16 @@ public class UserVocab {
     private String expression;
 
     @Column(name = "sentence_filled", nullable = false)
-    private Boolean sentenceFilled;
+    private Boolean sentenceFilled = false;
 
-    @Column(name = "audio_filled", nullable = false)
-    private Boolean audioFilled;
+    @Column(name = "expression_audio_filled", nullable = false)
+    private Boolean expressionAudioFilled = false;
+
+    @Column(name = "sentence_audio_filled", nullable = false)
+    private Boolean sentenceAudioFilled = false;
+
+    @Column(name = "image_filled", nullable = false)
+    private Boolean imageFilled = false;
 
     // Nullable: exact-match lookup against JMDICT will miss inflected forms, proper nouns, etc.
     @ManyToOne
