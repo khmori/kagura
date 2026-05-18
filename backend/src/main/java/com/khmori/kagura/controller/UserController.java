@@ -4,6 +4,8 @@ import java.util.Map;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,5 +23,10 @@ public class UserController {
     @GetMapping("/me/field-mapping")
     public Map<String, Map<String, String>> getFieldMapping() {
         return userService.getFieldMappingForCurrentUser();
+    }
+
+    @PutMapping("/me/field-mapping")
+    public void putFieldMapping(@RequestBody Map<String, Map<String, String>> mapping) {
+        userService.setFieldMappingForCurrentUser(mapping);
     }
 }

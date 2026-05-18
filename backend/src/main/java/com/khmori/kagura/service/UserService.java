@@ -22,4 +22,9 @@ public class UserService {
         User user = userRepo.findByProviderAndProviderUserId("manual", "test-1").orElseThrow();
         return user.getFieldMapping();
     }
+
+    public void setFieldMappingForCurrentUser(Map<String, Map<String, String>> mapping) {
+        User user = userRepo.findByProviderAndProviderUserId("manual", "test-1").orElseThrow();
+        user.setFieldMapping(mapping);
+    }
 }
