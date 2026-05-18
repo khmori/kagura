@@ -25,6 +25,9 @@ dicts/
 # Lombok
 lombok/config
 
+# Vite
+.vite/
+
 # Claude
 .claude/
 
