@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -13,8 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.khmori.kagura.entity.Compound;
 import com.khmori.kagura.entity.Kanji;
+import com.khmori.kagura.entity.User;
 import com.khmori.kagura.repository.CompoundRepository;
 import com.khmori.kagura.repository.KanjiRepository;
+import com.khmori.kagura.repository.UserRepository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,16 +29,20 @@ public class DataSeeder implements CommandLineRunner {
 
     private final KanjiRepository kanjiRepository;
     private final CompoundRepository compoundRepository;
+    private final UserRepository userRepository;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public DataSeeder(KanjiRepository kanjiRepository, CompoundRepository compoundRepository) {
+    public DataSeeder(KanjiRepository kanjiRepository, CompoundRepository compoundRepository, UserRepository userRepository) {
         this.kanjiRepository = kanjiRepository;
         this.compoundRepository = compoundRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
     @Transactional
     public void run(String... args) throws Exception {
+        seedTestUser();
+
         if (kanjiRepository.count() > 0) {
             System.out.println("Kanji table already seeded.");
             return;
@@ -216,5 +223,34 @@ public class DataSeeder implements CommandLineRunner {
         return text.length() == 2
                 && Character.UnicodeBlock.of(text.charAt(0)) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
                 && Character.UnicodeBlock.of(text.charAt(1)) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS;
+    }
+
+    // Test user for Pass 1 dev. Idempotent — re-uses existing row on subsequent boots.
+    // Frontend hardcodes userId=1, which only holds on a freshly-created DB.
+    private void seedTestUser() {
+        String provider = "manual";
+        String providerUserId = "test-1";
+        boolean exists = userRepository.findAll().stream()
+                .anyMatch(u -> provider.equals(u.getProvider())
+                            && providerUserId.equals(u.getProviderUserId()));
+        if (exists) {
+            System.out.println("Test user already present.");
+            return;
+        }
+        User u = new User();
+        u.setEmail("test@example.com");
+        u.setProvider(provider);
+        u.setProviderUserId(providerUserId);
+        u.setFieldMapping(Map.of(
+            "Mining-JP", Map.of(
+                "expression",      "front",
+                "sentence",        "Sentence",
+                "expressionAudio", "ExpressionAudio",
+                "sentenceAudio",   "SentenceAudio",
+                "image",           "Image"
+            )
+        ));
+        userRepository.save(u);
+        System.out.println("Seeded test user with id=" + u.getId());
     }
 }
