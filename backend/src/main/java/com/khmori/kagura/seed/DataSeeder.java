@@ -2,22 +2,22 @@ package com.khmori.kagura.seed;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.khmori.kagura.entity.Compound;
 import com.khmori.kagura.entity.Kanji;
 import com.khmori.kagura.entity.User;
-import com.khmori.kagura.repository.CompoundRepository;
+import com.khmori.kagura.entity.Word;
 import com.khmori.kagura.repository.KanjiRepository;
 import com.khmori.kagura.repository.UserRepository;
+import com.khmori.kagura.repository.WordRepository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,13 +28,13 @@ public class DataSeeder implements CommandLineRunner {
     private static final String JMDICT_PATH = "../dicts/jmdict-eng-3.6.2.json";
 
     private final KanjiRepository kanjiRepository;
-    private final CompoundRepository compoundRepository;
+    private final WordRepository wordRepository;
     private final UserRepository userRepository;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public DataSeeder(KanjiRepository kanjiRepository, CompoundRepository compoundRepository, UserRepository userRepository) {
+    public DataSeeder(KanjiRepository kanjiRepository, WordRepository wordRepository, UserRepository userRepository) {
         this.kanjiRepository = kanjiRepository;
-        this.compoundRepository = compoundRepository;
+        this.wordRepository = wordRepository;
         this.userRepository = userRepository;
     }
 
@@ -49,11 +49,11 @@ public class DataSeeder implements CommandLineRunner {
         }
         kanjiRepository.deleteAll();
         kanjiRepository.flush();
-        compoundRepository.deleteAll();
-        compoundRepository.flush();
+        wordRepository.deleteAll();
+        wordRepository.flush();
         seedKanji();
-        seedCompounds();
-        seedKanjiCompounds();
+        seedWords();
+        seedKanjiWords();
     }
 
     private void seedKanji() throws Exception {
@@ -131,98 +131,100 @@ public class DataSeeder implements CommandLineRunner {
         System.out.println("Kanji table seeded.");
     }
 
-    private void seedCompounds() throws Exception {
-        System.out.println("Seeding compound table...");
+    private void seedWords() throws Exception {
+        System.out.println("Seeding word table...");
 
         JsonNode root = mapper.readTree(new File(JMDICT_PATH));
-        JsonNode words = root.path("words");
+        JsonNode jmdictWords = root.path("words");
         Set<String> seen = new HashSet<>();
+        int entryCount = 0;
 
-        for (JsonNode word : words) {
-            JsonNode kanjiEntry = extractNiji(word.get("kanji"));
-            if (kanjiEntry == null) continue;
-
-            String kanjiText = kanjiEntry.get("text").asText();
-            if (!seen.add(kanjiText)) continue;
-
-            Compound compound = new Compound();
-
-            // Compound
-            compound.setCompound(kanjiText);
-
-            // Readings
-            List<String> readings = new ArrayList<>();
-            for (JsonNode kana : word.get("kana")) {
-                JsonNode appliesTo = kana.get("appliesToKanji");
-                for (JsonNode target : appliesTo) {
-                    if (target.asText().equals("*") || target.asText().equals(kanjiText)) {
-                        readings.add(kana.get("text").asText());
-                    }
-                }
+        // Per-word meanings are shared across all surface forms (kanji + kana entries).
+        for (JsonNode entry : jmdictWords) {
+            if (++entryCount % 20000 == 0) {
+                System.out.printf("  ...processed %d entries, %d unique words%n", entryCount, seen.size());
             }
-            compound.setReading(readings.toArray(new String[0]));
-
-            // Meanings
             List<String> meanings = new ArrayList<>();
-            for (JsonNode sense : word.get("sense")) {
+            for (JsonNode sense : entry.get("sense")) {
                 for (JsonNode gloss : sense.get("gloss")) {
                     meanings.add(gloss.get("text").asText());
                 }
             }
-            compound.setMeaning(meanings.toArray(new String[0]));
+            String[] meaningArr = meanings.toArray(new String[0]);
 
-            // Common
-            compound.setCommon(kanjiEntry.get("common").asBoolean());
+            JsonNode kanjiForms = entry.get("kanji");
+            JsonNode kanaForms = entry.get("kana");
 
-            compoundRepository.save(compound);
-        }
+            if (kanjiForms != null && kanjiForms.size() > 0) {
+                for (JsonNode kanjiForm : kanjiForms) {
+                    String text = kanjiForm.get("text").asText();
+                    if (!seen.add(text)) continue;
 
-        System.out.println("Compound table seeded.");
-    }
+                    List<String> readings = new ArrayList<>();
+                    for (JsonNode kana : kanaForms) {
+                        for (JsonNode target : kana.get("appliesToKanji")) {
+                            String t = target.asText();
+                            if (t.equals("*") || t.equals(text)) {
+                                readings.add(kana.get("text").asText());
+                                break;
+                            }
+                        }
+                    }
 
-    // TODO: optimize (map kanji : compounds for less DB queries)
-    private void seedKanjiCompounds() {
-        System.out.println("Seeding kanji-compounds join table...");
-    
-        List<Compound> compounds = compoundRepository.findAll();
-
-        int counter = 0;
-
-        for (Compound compound : compounds) {
-            String text = compound.getCompound();
-
-            for (int i = 0; i < text.length(); i++) {
-                String kanjiChar = String.valueOf(text.charAt(i));
-                
-                Optional<Kanji> opt = kanjiRepository.findByKanji(kanjiChar);
-                if (!opt.isPresent()) {
-                    continue;
+                    Word word = new Word();
+                    word.setWord(text);
+                    word.setReading(readings.toArray(new String[0]));
+                    word.setMeaning(meaningArr);
+                    word.setCommon(kanjiForm.get("common").asBoolean());
+                    wordRepository.save(word);
                 }
+            } else if (kanaForms != null && kanaForms.size() > 0) {
+                // Kana-only entry — the kana text IS the word.
+                for (JsonNode kanaForm : kanaForms) {
+                    String text = kanaForm.get("text").asText();
+                    if (!seen.add(text)) continue;
 
-                Kanji kanji = opt.get();
-                kanji.getCompounds().add(compound);
-                kanjiRepository.save(kanji);
-
-                System.out.println(compound.getCompound() + ": " + kanji.getKanji());
+                    Word word = new Word();
+                    word.setWord(text);
+                    word.setReading(new String[] { text });
+                    word.setMeaning(meaningArr);
+                    word.setCommon(kanaForm.get("common").asBoolean());
+                    wordRepository.save(word);
+                }
             }
-
         }
 
-        System.out.println("Kanji-compounds seeded.");
+        System.out.println("Word table seeded.");
     }
 
-    private JsonNode extractNiji(JsonNode kanjiEntries) {
-        for (JsonNode entry : kanjiEntries) {
-            if (isNiji(entry.get("text").asText()))
-                return entry;
+    private void seedKanjiWords() {
+        System.out.println("Seeding kanji-words join table...");
+
+        Map<String, Kanji> kanjiByChar = new HashMap<>();
+        for (Kanji k : kanjiRepository.findAll()) {
+            kanjiByChar.put(k.getKanji(), k);
         }
-        return null;
-    }
 
-    private boolean isNiji(String text) {
-        return text.length() == 2
-                && Character.UnicodeBlock.of(text.charAt(0)) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
-                && Character.UnicodeBlock.of(text.charAt(1)) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS;
+        List<Word> words = wordRepository.findAll();
+        int total = words.size();
+        int processed = 0;
+
+        for (Word word : words) {
+            String text = word.getWord();
+            for (int i = 0; i < text.length(); i++) {
+                Kanji kanji = kanjiByChar.get(String.valueOf(text.charAt(i)));
+                if (kanji != null) {
+                    kanji.getWords().add(word);
+                }
+            }
+            if (++processed % 5000 == 0) {
+                System.out.printf("  ...joined %d / %d words%n", processed, total);
+            }
+        }
+
+        System.out.println("Flushing kanji-words join rows...");
+        kanjiRepository.saveAll(kanjiByChar.values());
+        System.out.println("Kanji-words seeded.");
     }
 
     // Test user for Pass 1 dev. Idempotent — re-uses existing row on subsequent boots.

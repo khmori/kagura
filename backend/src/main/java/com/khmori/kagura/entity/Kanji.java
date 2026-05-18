@@ -52,9 +52,9 @@ public class Kanji {
 
     @ManyToMany(cascade = CascadeType.ALL)
     @JoinTable(
-        name = "kanji_compounds",
+        name = "kanji_words",
         joinColumns = @JoinColumn(name = "kanji_id"),
-        inverseJoinColumns = @JoinColumn(name = "compound_id")
+        inverseJoinColumns = @JoinColumn(name = "word_id")
     )
-    private Set<Compound> compounds = new HashSet<>();
+    private Set<Word> words = new HashSet<>();
 }

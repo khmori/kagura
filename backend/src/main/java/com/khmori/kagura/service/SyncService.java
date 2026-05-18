@@ -13,10 +13,10 @@ import com.khmori.kagura.dto.SyncResponse;
 import com.khmori.kagura.entity.RetentionStatus;
 import com.khmori.kagura.entity.User;
 import com.khmori.kagura.entity.UserVocab;
-import com.khmori.kagura.repository.CompoundRepository;
 import com.khmori.kagura.repository.UserKanjiRepository;
 import com.khmori.kagura.repository.UserRepository;
 import com.khmori.kagura.repository.UserVocabRepository;
+import com.khmori.kagura.repository.WordRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class SyncService {
     private final UserRepository userRepo;
     private final UserVocabRepository vocabRepo;
     private final UserKanjiRepository kanjiRepo;
-    private final CompoundRepository compoundRepo;
+    private final WordRepository wordRepo;
 
     @Transactional
     public SyncResponse sync(SyncRequest req) {
@@ -64,7 +64,7 @@ public class SyncService {
         vocab.setExpressionAudioFilled(slotFilled(note, mapping, "expressionAudio"));
         vocab.setSentenceAudioFilled(slotFilled(note, mapping, "sentenceAudio"));
         vocab.setImageFilled(slotFilled(note, mapping, "image"));
-        vocab.setCompound(compoundRepo.findByCompound(expression).orElse(null));
+        vocab.setWord(wordRepo.findByWord(expression).orElse(null));
         vocab.setRetentionStatus(RetentionStatus.NEW);
         vocab.setCards(note.cards);
         vocab.setFields(note.fields);

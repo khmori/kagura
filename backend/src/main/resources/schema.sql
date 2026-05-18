@@ -14,19 +14,19 @@ CREATE TABLE IF NOT EXISTS kanji (
     metadata JSONB          -- extensible: strokes SVGs, media usage, etc.
 );
 
-CREATE TABLE IF NOT EXISTS compounds (
+CREATE TABLE IF NOT EXISTS words (
     id SERIAL PRIMARY KEY,
-    compound TEXT UNIQUE NOT NULL,
+    word TEXT UNIQUE NOT NULL,
     reading TEXT[],
     meaning TEXT[],
     common BOOLEAN DEFAULT FALSE,
     jlpt INT
 );
 
-CREATE TABLE IF NOT EXISTS kanji_compounds (
+CREATE TABLE IF NOT EXISTS kanji_words (
     kanji_id INT REFERENCES kanji(id),
-    compound_id INT REFERENCES compounds(id),
-    PRIMARY KEY (kanji_id, compound_id)
+    word_id INT REFERENCES words(id),
+    PRIMARY KEY (kanji_id, word_id)
 );
 
 ------------------------------ user data ------------------------------
@@ -52,14 +52,14 @@ CREATE TABLE IF NOT EXISTS user_vocab (
     anki_model_name  TEXT NOT NULL,                  -- needed to pick the right field mapping
 
     -- extracted via the user's field_mapping at sync time
-    expression              TEXT NOT NULL,                  -- join key against compounds.compound
+    expression              TEXT NOT NULL,                  -- join key against words.word
     sentence_filled         BOOLEAN NOT NULL DEFAULT FALSE,
     expression_audio_filled BOOLEAN NOT NULL DEFAULT FALSE,
     sentence_audio_filled   BOOLEAN NOT NULL DEFAULT FALSE,
     image_filled            BOOLEAN NOT NULL DEFAULT FALSE,
 
-    -- reference compounds table for JMDICT readings/meanings/etc.
-    compound_id      INT REFERENCES compounds(id) ON DELETE SET NULL,
+    -- reference words table for JMDICT readings/meanings/etc.
+    word_id          INT REFERENCES words(id) ON DELETE SET NULL,
 
     -- per-note proficiency status, derived from the note's card(s) by the proficiency engine
     -- KNOWN | SHAKY | NEW | SUSPENDED
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS user_vocab (
 );
 
 CREATE INDEX IF NOT EXISTS user_vocab_user_status     ON user_vocab(user_id, retention_status);
-CREATE INDEX IF NOT EXISTS user_vocab_user_compound   ON user_vocab(user_id, compound_id);
+CREATE INDEX IF NOT EXISTS user_vocab_user_word       ON user_vocab(user_id, word_id);
 CREATE INDEX IF NOT EXISTS user_vocab_user_expression ON user_vocab(user_id, expression);
 
 -- per-kanji proficiency
