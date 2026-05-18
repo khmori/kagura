@@ -7,15 +7,15 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 @Entity
-@Table(name = "compounds")
+@Table(name = "words")
 @Data
-public class Compound {
+public class Word {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
     @Column(unique = true, nullable = false)
-    private String compound;
+    private String word;
 
     @Column(columnDefinition = "TEXT[]")
     private String[] reading;
@@ -29,6 +29,6 @@ public class Compound {
     @Column
     private Integer jlpt;
 
-    @ManyToMany(mappedBy = "compounds")
-    private Set<Kanji> kanji= new HashSet<>();
+    @ManyToMany(mappedBy = "words")
+    private Set<Kanji> kanji = new HashSet<>();
 }

@@ -60,8 +60,8 @@ public class UserVocab {
 
     // Nullable: exact-match lookup against JMDICT will miss inflected forms, proper nouns, etc.
     @ManyToOne
-    @JoinColumn(name = "compound_id")
-    private Compound compound;
+    @JoinColumn(name = "word_id")
+    private Word word;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "retention_status", nullable = false)
