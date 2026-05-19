@@ -243,15 +243,7 @@ public class DataSeeder implements CommandLineRunner {
         u.setEmail("test@example.com");
         u.setProvider(provider);
         u.setProviderUserId(providerUserId);
-        u.setFieldMapping(Map.of(
-            "Mining-JP", Map.of(
-                "expression",      "front",
-                "sentence",        "Sentence",
-                "expressionAudio", "ExpressionAudio",
-                "sentenceAudio",   "SentenceAudio",
-                "image",           "Image"
-            )
-        ));
+        u.setFieldMapping(Map.of());
         userRepository.save(u);
         System.out.println("Seeded test user with id=" + u.getId());
     }

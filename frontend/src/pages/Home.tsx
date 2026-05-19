@@ -24,7 +24,10 @@ export default function Home() {
       )}
 
       <section className="flex flex-wrap gap-2">
-        <Button onClick={sync} disabled={!config.selectedDeck}>
+        <Button
+          onClick={() => sync(config.selectedDeck!, config.fieldMapping)}
+          disabled={!config.selectedDeck}
+        >
           Sync with AnkiConnect
         </Button>
         <Button variant="outline" onClick={probe}>

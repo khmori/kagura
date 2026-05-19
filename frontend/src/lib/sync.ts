@@ -1,4 +1,5 @@
 import { anki, type CardInfo, type FieldMap, type NoteInfo } from "./anki";
+import type { FieldMapping } from "./api";
 
 // payload sent to the backend — mirrors com.khmori.kagura.dto.SyncRequest / IncomingNote
 export interface SyncRequest {
@@ -13,15 +14,6 @@ export interface IncomingNote {
   fields: FieldMap;
   cards: CardInfo[];
 }
-
-// AnkiConnect returns lots of extra data per card (rendered HTML, CSS, templates)
-// and per note (Yomitan HTML soup, media). Drop everything backend doesn't read.
-const KEPT_NOTE_FIELDS = [
-  "front",
-  "Sentence",
-  "ExpressionAudio",
-  "SentenceAudio",
-];
 
 function extractCardScheduling(c: CardInfo): CardInfo {
   const {
@@ -48,10 +40,17 @@ function extractCardScheduling(c: CardInfo): CardInfo {
   };
 }
 
-function extractNoteFields(fields: FieldMap): FieldMap {
+// AnkiConnect returns lots of extra data per card (rendered HTML, CSS, templates)
+// and per note (Yomitan HTML soup, media). Keep only the fields the user mapped
+// to a canonical slot for this note type — backend reads nothing else.
+function extractNoteFields(
+  fields: FieldMap,
+  modelMapping: Record<string, string> | undefined,
+): FieldMap {
+  if (!modelMapping) return {};
   const out: FieldMap = {};
-  for (const key of KEPT_NOTE_FIELDS) {
-    if (fields[key]) out[key] = fields[key];
+  for (const ankiFieldName of Object.values(modelMapping)) {
+    if (fields[ankiFieldName]) out[ankiFieldName] = fields[ankiFieldName];
   }
   return out;
 }
@@ -60,6 +59,7 @@ export async function buildSyncRequest(
   deckName: string,
   provider: string,
   providerUserId: string,
+  fieldMapping: FieldMapping,
 ): Promise<SyncRequest> {
   // 1. find note IDs in the deck
   const noteIds = await anki<number[]>("findNotes", {
@@ -76,12 +76,12 @@ export async function buildSyncRequest(
     cardsInfo.map((c) => [c.cardId, c]),
   );
 
-  // 4. shape into IncomingNote[] — backend's expected format
+  // 4. shape into IncomingNote[] — backend's expected format. Notes whose
+  // modelName has no mapping go through with empty fields; backend skips them.
   const notes: IncomingNote[] = notesInfo.map((n) => ({
     ankiNoteId: n.noteId,
     ankiModelName: n.modelName,
-    fields: extractNoteFields(n.fields),
-    // fields: n.fields,
+    fields: extractNoteFields(n.fields, fieldMapping[n.modelName]),
     cards: n.cards
       .map((id) => cardsById.get(id))
       .filter((c): c is CardInfo => c !== undefined)
@@ -91,20 +91,13 @@ export async function buildSyncRequest(
   return { provider, providerUserId, notes };
 }
 
-export async function sync() {
-  // make calls to AnkiConnect API for current user and chosen deck
+export async function sync(deckName: string, fieldMapping: FieldMapping) {
   const syncRequest = await buildSyncRequest(
-    "reading mine",
+    deckName,
     "manual",
     "test-1",
+    fieldMapping,
   );
-
-  // determine distinct note types in current deck
-  const distinctModelNames = new Set<string>();
-  syncRequest.notes.map((n) => distinctModelNames.add(n.ankiModelName));
-  console.log(distinctModelNames);
-
-  syncRequest.notes.map((n) => console.log(n.ankiModelName));
 
   const body = JSON.stringify(syncRequest);
   console.log(
