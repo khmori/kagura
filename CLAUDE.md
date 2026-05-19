@@ -125,6 +125,22 @@ The `anki()` helper in `App.tsx` wraps AnkiConnect's `{action, version, params}`
 
 **API boundary typing.** `response.json()` returns `Promise<any>` — using `as SomeType` is a compile-time-only assertion with no runtime check, so a malformed response silently produces `undefined`/`NaN` bugs downstream. Plan to adopt **zod** for runtime validation at every fetch boundary (`zod.parse(await res.json())`) and derive TS types via `z.infer<typeof Schema>` so one schema drives both. `as` is acceptable during prototyping (own backend, simple shapes — current state) but switch to zod before any third-party API integration (Nadeshiko) and before any UI renders nested response data directly (Dashboard, Discover). Shared schemas live in `frontend/src/types/` (or `lib/schemas/`) and mirror the backend DTOs in `com.khmori.kagura.dto`.
 
+## Settings UI placement (open question)
+
+Currently Settings is a full page reached via the left nav rail (Home / Settings). Considering switching to a **gear icon top-right that opens `<Settings />` in a native `<dialog>`**. Rationale: Kagura settings will probably top out at 3-4 tabs (Sync, Account, Appearance, maybe Discover prefs) — dialog-weight, not full-page-weight. The badge (yellow `!` when setup is incomplete) moves to the gear icon. Same `<Settings />` component either way; only the container changes.
+
+References worth looking at before deciding: Linear's settings dialog, Raycast Preferences, mobbin.com (filter "Settings"). Decision criteria is roughly: if Settings stays small, dialog wins; if it grows past ~5 tabs with deep config, the current full-page wins.
+
+Either way, **no forced redirects to Settings**. Boot always lands on Home. Unmapped slots surface via the badge + per-dropdown yellow highlights in Settings, never by teleporting the user.
+
+## Typography (planned)
+
+Two-font system: **IBM Plex Sans** for UI chrome and Latin text, **Klee One** as the default for Japanese text (kanji/kana in the inventory, example sentences, headings). Klee One is a textbook-style kaisho — feels appropriate for a learning tool and uses the kanji forms learners are trained on.
+
+The Japanese font should be **user-configurable in Settings**. Offer a small curated list (Klee One default, Noto Serif JP, Shippori Mincho, Zen Old Mincho, Noto Sans JP, M PLUS 1) — not a free-text field. Persist on the user (likely a `users.preferences` JSONB column or similar; design alongside other future user prefs). Apply via a CSS custom property (`--font-jp`) on `:root` so all Japanese-rendering components pick it up without prop drilling.
+
+Load fonts via Google Fonts `<link>` in `index.html` for the curated set. Latin font stays fixed (IBM Plex Sans).
+
 ## Conventions
 
 - Package root: `com.khmori.kagura`.

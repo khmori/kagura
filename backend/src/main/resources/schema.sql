@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS users (
     -- Per-model field mapping populated via the Settings UI.
     -- { "<modelName>": { "expression": "front", "sentence": "Sentence", "audio": "Audio" }, ... }
     field_mapping    JSONB NOT NULL DEFAULT '{}'::jsonb,
+    -- Anki deck the user has chosen to sync from. Null until Setup is completed.
+    selected_deck    TEXT,
     created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (provider, provider_user_id)
 );
