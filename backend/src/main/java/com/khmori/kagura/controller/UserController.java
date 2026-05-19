@@ -1,7 +1,5 @@
 package com.khmori.kagura.controller;
 
-import java.util.Map;
-
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -9,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.khmori.kagura.dto.UserConfig;
 import com.khmori.kagura.service.UserService;
 
 import lombok.RequiredArgsConstructor;
@@ -20,13 +19,13 @@ import lombok.RequiredArgsConstructor;
 public class UserController {
     private final UserService userService;
 
-    @GetMapping("/me/field-mapping")
-    public Map<String, Map<String, String>> getFieldMapping() {
-        return userService.getFieldMappingForCurrentUser();
+    @GetMapping("/me/config")
+    public UserConfig getConfig() {
+        return userService.getConfigForCurrentUser();
     }
 
-    @PutMapping("/me/field-mapping")
-    public void putFieldMapping(@RequestBody Map<String, Map<String, String>> mapping) {
-        userService.setFieldMappingForCurrentUser(mapping);
+    @PutMapping("/me/config")
+    public void putConfig(@RequestBody UserConfig config) {
+        userService.setConfigForCurrentUser(config);
     }
 }

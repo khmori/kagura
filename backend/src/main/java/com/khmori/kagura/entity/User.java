@@ -42,6 +42,10 @@ public class User {
     @Column(name = "field_mapping", columnDefinition = "jsonb", nullable = false)
     private Map<String, Map<String, String>> fieldMapping = new HashMap<>();
 
+    // Anki deck the user has chosen to sync from. Null until Setup is completed.
+    @Column(name = "selected_deck")
+    private String selectedDeck;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }

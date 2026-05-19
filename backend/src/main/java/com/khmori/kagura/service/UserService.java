@@ -1,11 +1,9 @@
 package com.khmori.kagura.service;
 
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.khmori.kagura.dto.UserConfig;
 import com.khmori.kagura.entity.User;
 import com.khmori.kagura.repository.UserRepository;
 
@@ -14,17 +12,23 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class UserService {
-    private static final Logger log = LoggerFactory.getLogger(UserService.class);
-
     private final UserRepository userRepo;
 
-    public Map<String, Map<String, String>> getFieldMappingForCurrentUser() {
+    public UserConfig getConfigForCurrentUser() {
         User user = userRepo.findByProviderAndProviderUserId("manual", "test-1").orElseThrow();
-        return user.getFieldMapping();
+        UserConfig config = new UserConfig();
+        config.selectedDeck = user.getSelectedDeck();
+        config.fieldMapping = user.getFieldMapping();
+        return config;
     }
 
-    public void setFieldMappingForCurrentUser(Map<String, Map<String, String>> mapping) {
+    @Transactional
+    public void setConfigForCurrentUser(UserConfig config) {
         User user = userRepo.findByProviderAndProviderUserId("manual", "test-1").orElseThrow();
-        user.setFieldMapping(mapping);
+        user.setSelectedDeck(config.selectedDeck);
+        if (config.fieldMapping != null) {
+            user.setFieldMapping(config.fieldMapping);
+        }
+        userRepo.save(user);
     }
 }
