@@ -3,8 +3,7 @@ import { cn } from "@/lib/utils";
 
 type Variant = "info" | "news" | "blog" | "warn";
 
-// Soft pastel callout card — eyebrow label on top, title/body below.
-// Colors come from CSS custom properties defined in index.css.
+// Soft pastel callout card. Colors come from CSS custom properties in index.css.
 export function Callout({
   variant = "info",
   eyebrow,
@@ -19,15 +18,13 @@ export function Callout({
   return (
     <div
       className={cn(
-        "rounded-2xl border px-5 py-4",
+        "rounded-lg border px-5 py-4",
         VARIANT_CLASS[variant],
         className,
       )}
     >
       {eyebrow && (
-        <div className="mb-1 text-[11px] font-semibold tracking-[0.08em] uppercase opacity-80">
-          {eyebrow}
-        </div>
+        <div className="mb-1 text-xs font-medium opacity-80">{eyebrow}</div>
       )}
       <div className="text-sm leading-relaxed text-foreground/90">
         {children}

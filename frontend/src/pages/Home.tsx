@@ -17,7 +17,7 @@ export default function Home() {
       </header>
 
       {!config.selectedDeck && (
-        <Callout variant="news" eyebrow="Setup needed">
+        <Callout variant="news">
           Pick a deck and confirm your field mappings in{" "}
           <span className="font-semibold">Settings</span> to start syncing.
         </Callout>

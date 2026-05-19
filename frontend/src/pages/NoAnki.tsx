@@ -3,13 +3,10 @@ import { Button } from "@/components/ui/button";
 
 export default function NoAnki() {
   return (
-    <div className="bg-background text-foreground flex min-h-screen items-center justify-center p-6">
+    <div className="bg-background text-foreground flex min-h-screen items-start justify-center px-6 pt-32">
       <div className="w-full max-w-md space-y-5">
         <header>
-          <div className="text-[10px] font-semibold tracking-[0.15em] uppercase text-muted-foreground">
-            Kagura
-          </div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight">
             Anki isn&apos;t running
           </h1>
         </header>

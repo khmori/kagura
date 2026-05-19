@@ -10,12 +10,7 @@ export default function Layout() {
     <div className="bg-background text-foreground flex min-h-screen">
       <nav className="bg-sidebar border-sidebar-border flex w-56 flex-col gap-1 border-r px-5 py-8">
         <div className="mb-8 px-2">
-          <div className="text-[10px] font-semibold tracking-[0.15em] uppercase text-muted-foreground">
-            Kagura
-          </div>
-          <div className="mt-0.5 text-base font-semibold tracking-tight">
-            神楽
-          </div>
+          <div className="text-base font-semibold tracking-tight">Kagura</div>
         </div>
         <RailLink to="/">Home</RailLink>
         <RailLink to="/settings" badge={needsAttention}>
@@ -31,15 +26,7 @@ export default function Layout() {
   );
 }
 
-function RailLink({
-  to,
-  children,
-  badge,
-}: {
-  to: string;
-  children: React.ReactNode;
-  badge?: boolean;
-}) {
+function RailLink({ to, children, badge }: { to: string; children: React.ReactNode; badge?: boolean }) {
   return (
     <NavLink
       to={to}
@@ -47,9 +34,7 @@ function RailLink({
       className={({ isActive }) =>
         cn(
           "flex items-center justify-between px-2 py-1 text-sm transition-colors",
-          isActive
-            ? "text-foreground font-semibold"
-            : "text-muted-foreground hover:text-foreground",
+          isActive ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground",
         )
       }
     >
@@ -70,7 +55,5 @@ function useSettingsBadge(): boolean {
   const { config, modelsInSelectedDeck } = useConfig();
   if (!config.selectedDeck) return true;
   if (modelsInSelectedDeck === null) return false;
-  return modelsInSelectedDeck.some((model) =>
-    SLOTS.some((slot) => !config.fieldMapping[model]?.[slot]),
-  );
+  return modelsInSelectedDeck.some((model) => SLOTS.some((slot) => !config.fieldMapping[model]?.[slot]));
 }

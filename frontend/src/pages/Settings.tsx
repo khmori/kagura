@@ -218,7 +218,11 @@ function SyncTab() {
       </div>
 
       <div className="flex items-center gap-3 pt-2">
-        <Button onClick={save} disabled={saving || !selectedDeck}>
+        <Button
+          onClick={save}
+          disabled={saving || !selectedDeck}
+          className="min-w-20"
+        >
           {saving ? "Saving…" : "Save"}
         </Button>
         {saveMsg && (
@@ -242,7 +246,12 @@ function ModelCard({
 }) {
   return (
     <section className="bg-card rounded-md border p-6">
-      <h3 className="mb-4 font-semibold tracking-tight">{model}</h3>
+      <div className="mb-4">
+        <div className="text-xs font-medium text-muted-foreground opacity-80">
+          Note type
+        </div>
+        <h3 className="mt-0.5 font-semibold tracking-tight">{model}</h3>
+      </div>
       <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
         {SLOTS.map((slot) => {
           const value = mapping[slot] ?? "";
