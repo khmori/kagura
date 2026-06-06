@@ -1,6 +1,7 @@
 package com.khmori.kagura.service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.khmori.kagura.dto.IncomingNote;
 import com.khmori.kagura.dto.SyncRequest;
 import com.khmori.kagura.dto.SyncResponse;
+import com.khmori.kagura.dto.UserKanjiDto;
 import com.khmori.kagura.entity.RetentionStatus;
 import com.khmori.kagura.entity.User;
 import com.khmori.kagura.entity.UserVocab;
@@ -33,20 +35,29 @@ public class SyncService {
 
     @Transactional
     public SyncResponse sync(SyncRequest req) {
-        User user = userRepo
-            .findByProviderAndProviderUserId(req.provider, req.providerUserId)
-            .orElseThrow();
+        User user = userRepo.findByProviderAndProviderUserId(req.provider, req.providerUserId).orElseThrow();
         FieldMapping mapping = new FieldMapping(user.getFieldMapping());
 
         for (IncomingNote note : req.notes) {
             if (!mapping.hasModel(note.ankiModelName)) {
-                log.warn("no field mapping for model '{}'; skipping note {}",
-                        note.ankiModelName, note.ankiNoteId);
+                log.warn("no field mapping for model '{}'; skipping note {}", note.ankiModelName, note.ankiNoteId);
                 continue;
             }
-            upsertVocab(user, note, mapping);
+            upsertVocab(user, note, mapping); // update (or insert) the user_vocab table for the given note, for the given user
         }
+        kanjiRepo.computeScoresForUser(user.getId());
         return new SyncResponse();
+    }
+
+    public List<UserKanjiDto> getUserKanji() {
+        User user = userRepo.findByProviderAndProviderUserId("manual", "test-1").orElseThrow();
+        return kanjiRepo.findByUserIdOrderByProficiencyScoreDesc(user.getId()).stream().map(uk -> {
+            UserKanjiDto dto = new UserKanjiDto();
+            dto.kanji = uk.getKanji().getKanji();
+            dto.proficiencyScore = uk.getProficiencyScore();
+            dto.known = uk.getKnown();
+            return dto;
+        }).toList();
     }
 
     private void upsertVocab(User user, IncomingNote note, FieldMapping mapping) {
@@ -65,11 +76,59 @@ public class SyncService {
         vocab.setSentenceAudioFilled(slotFilled(note, mapping, "sentenceAudio"));
         vocab.setImageFilled(slotFilled(note, mapping, "image"));
         vocab.setWord(wordRepo.findByWord(expression).orElse(null));
-        vocab.setRetentionStatus(RetentionStatus.NEW);
+        vocab.setRetentionStatus(deriveStatus(note.cards));
+        vocab.setAvgInterval(computeAvgInterval(note.cards));
         vocab.setCards(note.cards);
         vocab.setFields(note.fields);
         vocab.setLastSyncedAt(Instant.now());
         vocabRepo.save(vocab);
+    }
+
+    /**
+     * Coarse per-word label for each vocab (note), derived from the note's cards (best status wins).
+     * NEW: no cards or only new cards
+     * SUSPENDED: all cards suspended
+     * KNOWN: any "mature" (interval > 21 and lapses < 3) cards
+     * SHAKY: anything else
+     */
+    private static RetentionStatus deriveStatus(List<Map<String, Object>> cards) {
+        if (cards == null || cards.isEmpty()) return RetentionStatus.NEW;
+
+        boolean anyActive = false;
+        boolean anyStudied = false;
+
+        for (Map<String, Object> card : cards) {
+            if ((Integer) card.get("queue") == -1) continue; // suspended
+            anyActive = true;
+            if ((Integer) card.get("type") > 0) {
+                anyStudied = true;
+                if ((Integer) card.get("interval") > 21 && (Integer) card.get("lapses") < 3) {
+                    return RetentionStatus.KNOWN; // mature
+                }
+            }
+        }
+
+        if (!anyActive) return RetentionStatus.SUSPENDED;
+        if (anyStudied) return RetentionStatus.SHAKY;
+        return RetentionStatus.NEW;
+    }
+
+    /**
+     * Mean card.interval over seen, non-suspended cards (queue != -1 && type > 0).
+     * If no qualifying cards, return null.
+     */
+    private static Double computeAvgInterval(List<Map<String, Object>> cards) {
+        if (cards == null || cards.isEmpty()) return null;
+
+        long sum = 0;
+        int count = 0;
+        for (Map<String, Object> card : cards) {
+            if ((Integer) card.get("queue") != -1 && (Integer) card.get("type") > 0) {
+                sum += (Integer) card.get("interval");
+                count++;
+            }
+        }
+        return count == 0 ? null : (double) sum / count;
     }
 
     private static String slotValue(IncomingNote note, FieldMapping mapping, String slot) {

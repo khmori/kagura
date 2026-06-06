@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS user_vocab (
     -- KNOWN | SHAKY | NEW | SUSPENDED
     retention_status TEXT NOT NULL,
 
+    avg_interval     DOUBLE PRECISION,
+
     -- raw card scheduling data, one entry per card
     -- [{ cardId, interval, lapses, reps, factor, queue, type, due }, ...]
     cards            JSONB NOT NULL,

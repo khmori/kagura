@@ -6,7 +6,13 @@ export interface UserConfig {
   fieldMapping: FieldMapping;
 }
 
-const API_BASE = "http://localhost:8080";
+export const API_BASE = "http://localhost:8080";
+
+export interface UserKanjiDto {
+  kanji: string;
+  proficiencyScore: number;
+  known: boolean;
+}
 
 export async function getUserConfig(): Promise<UserConfig> {
   const res = await fetch(`${API_BASE}/api/users/me/config`);
@@ -21,4 +27,10 @@ export async function putUserConfig(config: UserConfig): Promise<void> {
     body: JSON.stringify(config),
   });
   if (!res.ok) throw new Error(`config save failed: ${res.status}`);
+}
+
+export async function getUserKanji(): Promise<UserKanjiDto[]> {
+  const res = await fetch(`${API_BASE}/api/user-kanji`);
+  if (!res.ok) throw new Error(`user kanji fetch failed: ${res.status}`);
+  return (await res.json()) as UserKanjiDto[];
 }
