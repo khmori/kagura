@@ -13,10 +13,14 @@ import org.springframework.stereotype.Service;
 import com.khmori.kagura.dto.IncomingNote;
 import com.khmori.kagura.dto.SyncRequest;
 import com.khmori.kagura.dto.SyncResponse;
+import com.khmori.kagura.dto.KanjiDetailsDto;
 import com.khmori.kagura.dto.UserKanjiDto;
+import com.khmori.kagura.entity.Kanji;
 import com.khmori.kagura.entity.RetentionStatus;
 import com.khmori.kagura.entity.User;
 import com.khmori.kagura.entity.UserVocab;
+import com.khmori.kagura.entity.Word;
+import com.khmori.kagura.repository.KanjiRepository;
 import com.khmori.kagura.repository.UserKanjiRepository;
 import com.khmori.kagura.repository.UserRepository;
 import com.khmori.kagura.repository.UserVocabRepository;
@@ -30,7 +34,8 @@ public class SyncService {
 
     private final UserRepository userRepo;
     private final UserVocabRepository userVocabRepo;
-    private final UserKanjiRepository kanjiRepo;
+    private final UserKanjiRepository userKanjiRepo;
+    private final KanjiRepository kanjiRepo;
 
     @Transactional
     public SyncResponse sync(SyncRequest req) {
@@ -57,19 +62,59 @@ public class SyncService {
             toSave.add(vocab);
         }
         userVocabRepo.saveAll(toSave);
-        kanjiRepo.computeScoresForUser(user.getId());
+        userKanjiRepo.computeScoresForUser(user.getId());
         return new SyncResponse();
     }
 
     public List<UserKanjiDto> getUserKanji() {
         User user = userRepo.findByProviderAndProviderUserId("manual", "test-1").orElseThrow();
-        return kanjiRepo.findByUserIdOrderByProficiencyScoreDesc(user.getId()).stream().map(uk -> {
+        return userKanjiRepo.findByUserIdOrderByProficiencyScoreDesc(user.getId()).stream().map(uk -> {
             UserKanjiDto dto = new UserKanjiDto();
             dto.kanji = uk.getKanji().getKanji();
             dto.proficiencyScore = uk.getProficiencyScore();
             dto.known = uk.getKnown();
             return dto;
         }).toList();
+    }
+
+    public KanjiDetailsDto getKanjiDetails(String character) {
+        User user = userRepo.findByProviderAndProviderUserId("manual", "test-1").orElseThrow();
+        Kanji kanji = kanjiRepo.findByKanji(character).orElseThrow(); // O(logn) unique lookup
+
+        Map<String, RetentionStatus> statusByExpression = new HashMap<>();
+        for (UserVocab vocab : userVocabRepo.findByUserId(user.getId())) {
+            statusByExpression.put(vocab.getExpression(), vocab.getRetentionStatus());
+        }
+
+        // Iterate through words that include the given kanji (according to the join table)
+        // and fetch fields from the words table (readings, meaningss, etc.)
+        List<KanjiDetailsDto.WordEntry> words = new ArrayList<>();
+        for (Word word : kanji.getWords()) {
+            KanjiDetailsDto.WordEntry entry = new KanjiDetailsDto.WordEntry();
+            entry.word = word.getWord();
+            entry.reading = word.getReading();
+            entry.meaning = word.getMeaning();
+            entry.common = word.getCommon() != null && word.getCommon();
+            RetentionStatus status = statusByExpression.get(word.getWord());
+            entry.retentionStatus = status != null ? status.name() : null;
+            words.add(entry);
+        }
+        // Words with the "common" attribute set to true come first
+        words.sort((a, b) -> {
+            if (a.common != b.common) return a.common ? -1 : 1;
+            return a.word.compareTo(b.word);
+        });
+
+        KanjiDetailsDto dto = new KanjiDetailsDto();
+        dto.kanji = kanji.getKanji();
+        dto.onReading = kanji.getOnReading();
+        dto.kunReading = kanji.getKunReading();
+        dto.meaning = kanji.getMeaning();
+        dto.grade = kanji.getGrade();
+        dto.jlptLevel = kanji.getJlptLevel();
+        dto.strokeCount = kanji.getStrokeCount();
+        dto.words = words;
+        return dto;
     }
 
     private void populateVocab(UserVocab vocab, User user, IncomingNote note, FieldMapping mapping) {

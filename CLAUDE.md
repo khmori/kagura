@@ -142,9 +142,11 @@ Rough priority order from current state. Estimates are solo-dev "focused day" un
 3. Minimal dashboard UI (1–2 days). Table of `user_vocab` with retention colors, kanji grid colored by `known`. Ugly is fine.
 
 **P2 — pay down**
-4. Gzip the sync payload (30 min). Unfiltered notes hit the 50MB ceiling; gzip → ~5MB. `server.compression.enabled=true` on Spring.
-5. Flyway/Liquibase (2–4 hrs). Already hit the `CREATE TABLE IF NOT EXISTS` trap once; do this before more schema changes.
-6. Unit tests for `FieldMapping` + `SyncService` (half day). Cheap insurance on load-bearing code.
+4. Sync performance (1–2 hrs). Hibernate can't batch INSERTs with `IDENTITY` generation. Switch `user_vocab` to `SEQUENCE` strategy or bypass Hibernate with a native bulk upsert via JDBC.
+5. Gzip the sync payload (30 min). Unfiltered notes hit the 50MB ceiling; gzip → ~5MB. `server.compression.enabled=true` on Spring.
+6. Flyway/Liquibase (2–4 hrs). Already hit the `CREATE TABLE IF NOT EXISTS` trap once; do this before more schema changes.
+7. Unit tests for `FieldMapping` + `SyncService` (half day). Cheap insurance on load-bearing code.
+8. Word/kanji frequency data. JMDICT only has coarse tags (`news1/2`, `ichi1/2`, `nf01`–`nf48`), and the `words.common` boolean is binary. Collapse these into a numeric frequency score for proper sort ordering in the detail panel word list. Consider an external frequency list (e.g. JPDB, Innocent Corpus) for finer granularity.
 
 **Weakest estimates:** Pass B SQL (#2) could be a half-day if it clicks, 3 days if you fight JPQL — go native from the start.
 

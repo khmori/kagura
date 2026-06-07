@@ -6,7 +6,12 @@ function scoreToColor(score: number): string {
   return `hsl(${hue} 70% 85%)`;
 }
 
-export function KanjiGrid({ entries }: { entries: UserKanjiDto[] }) {
+interface KanjiGridProps {
+  entries: UserKanjiDto[];
+  onSelectKanji: (kanji: string) => void;
+}
+
+export function KanjiGrid({ entries, onSelectKanji }: KanjiGridProps) {
   const knownCount = entries.filter((e) => e.known).length;
 
   return (
@@ -18,6 +23,7 @@ export function KanjiGrid({ entries }: { entries: UserKanjiDto[] }) {
         {entries.map((entry) => (
           <button
             key={entry.kanji}
+            onClick={() => onSelectKanji(entry.kanji)}
             className="inline-flex items-center justify-center w-9 h-9 text-sm rounded-sm border border-border/50 cursor-pointer hover:ring-2 hover:ring-ring transition-shadow"
             style={{ backgroundColor: scoreToColor(entry.proficiencyScore) }}
             title={`${entry.kanji}: ${(entry.proficiencyScore * 100).toFixed(0)}%`}

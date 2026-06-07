@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Callout } from "@/components/Callout";
+import { KanjiDetailsPanel } from "@/components/KanjiDetailsPanel";
 import { KanjiGrid } from "@/components/KanjiGrid";
 import { Button } from "@/components/ui/button";
 import { getUserKanji, type UserKanjiDto } from "@/lib/api";
@@ -11,6 +12,7 @@ export default function Home() {
   const { config } = useConfig();
   const [grid, setGrid] = useState<UserKanjiDto[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [selectedKanji, setSelectedKanji] = useState<string | null>(null);
 
   useEffect(() => {
     getUserKanji()
@@ -51,7 +53,11 @@ export default function Home() {
         </Button>
       </section>
 
-      {grid.length > 0 && <KanjiGrid entries={grid} />}
+      {grid.length > 0 && <KanjiGrid entries={grid} onSelectKanji={setSelectedKanji} />}
+
+      {selectedKanji && (
+        <KanjiDetailsPanel kanji={selectedKanji} onClose={() => setSelectedKanji(null)} />
+      )}
     </div>
   );
 }

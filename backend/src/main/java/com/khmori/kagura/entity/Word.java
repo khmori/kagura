@@ -5,10 +5,12 @@ import java.util.Set;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Table(name = "words")
 @Data
+@EqualsAndHashCode(exclude = "kanji")
 public class Word {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -9,10 +9,12 @@ import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Table(name = "kanji")
 @Data
+@EqualsAndHashCode(exclude = "words")
 public class Kanji {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

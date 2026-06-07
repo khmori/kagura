@@ -34,3 +34,28 @@ export async function getUserKanji(): Promise<UserKanjiDto[]> {
   if (!res.ok) throw new Error(`user kanji fetch failed: ${res.status}`);
   return (await res.json()) as UserKanjiDto[];
 }
+
+export interface KanjiDetails {
+  kanji: string;
+  onReading: string[];
+  kunReading: string[];
+  meaning: string[];
+  grade: number | null;
+  jlptLevel: number | null;
+  strokeCount: number | null;
+  words: WordEntry[];
+}
+
+export interface WordEntry {
+  word: string;
+  reading: string[];
+  meaning: string[];
+  common: boolean;
+  retentionStatus: string | null;
+}
+
+export async function getKanjiDetails(character: string): Promise<KanjiDetails> {
+  const res = await fetch(`${API_BASE}/api/kanji/${encodeURIComponent(character)}`);
+  if (!res.ok) throw new Error(`kanji details fetch failed: ${res.status}`);
+  return (await res.json()) as KanjiDetails;
+}
