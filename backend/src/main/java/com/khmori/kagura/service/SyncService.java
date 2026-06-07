@@ -29,7 +29,7 @@ public class SyncService {
     private static final Logger log = LoggerFactory.getLogger(SyncService.class);
 
     private final UserRepository userRepo;
-    private final UserVocabRepository vocabRepo;
+    private final UserVocabRepository userVocabRepo;
     private final UserKanjiRepository kanjiRepo;
     private final WordRepository wordRepo;
 
@@ -61,27 +61,24 @@ public class SyncService {
     }
 
     private void upsertVocab(User user, IncomingNote note, FieldMapping mapping) {
-        UserVocab vocab = vocabRepo
-            .findByUserIdAndAnkiNoteId(user.getId(), note.ankiNoteId)
-            .orElseGet(UserVocab::new);
+        UserVocab userVocab = userVocabRepo.findByUserIdAndAnkiNoteId(user.getId(), note.ankiNoteId).orElseGet(UserVocab::new);
+        String expression = getSlotValue(note, mapping, "expression");
 
-        String expression = slotValue(note, mapping, "expression");
-
-        vocab.setUser(user);
-        vocab.setAnkiNoteId(note.ankiNoteId);
-        vocab.setAnkiModelName(note.ankiModelName);
-        vocab.setExpression(expression);
-        vocab.setSentenceFilled(slotFilled(note, mapping, "sentence"));
-        vocab.setExpressionAudioFilled(slotFilled(note, mapping, "expressionAudio"));
-        vocab.setSentenceAudioFilled(slotFilled(note, mapping, "sentenceAudio"));
-        vocab.setImageFilled(slotFilled(note, mapping, "image"));
-        vocab.setWord(wordRepo.findByWord(expression).orElse(null));
-        vocab.setRetentionStatus(deriveStatus(note.cards));
-        vocab.setAvgInterval(computeAvgInterval(note.cards));
-        vocab.setCards(note.cards);
-        vocab.setFields(note.fields);
-        vocab.setLastSyncedAt(Instant.now());
-        vocabRepo.save(vocab);
+        userVocab.setUser(user);
+        userVocab.setAnkiNoteId(note.ankiNoteId);
+        userVocab.setAnkiModelName(note.ankiModelName);
+        userVocab.setExpression(expression);
+        userVocab.setSentenceFilled(!getSlotValue(note, mapping, "sentence").isEmpty());
+        userVocab.setExpressionAudioFilled(!getSlotValue(note, mapping, "expressionAudio").isEmpty());
+        userVocab.setSentenceAudioFilled(!getSlotValue(note, mapping, "sentenceAudio").isEmpty());
+        userVocab.setImageFilled(!getSlotValue(note, mapping, "image").isEmpty());
+        userVocab.setWord(wordRepo.findByWord(expression).orElse(null));
+        userVocab.setRetentionStatus(deriveStatus(note.cards));
+        userVocab.setAvgInterval(computeAvgInterval(note.cards));
+        userVocab.setCards(note.cards);
+        userVocab.setFields(note.fields);
+        userVocab.setLastSyncedAt(Instant.now());
+        userVocabRepo.save(userVocab);
     }
 
     /**
@@ -131,15 +128,11 @@ public class SyncService {
         return count == 0 ? null : (double) sum / count;
     }
 
-    private static String slotValue(IncomingNote note, FieldMapping mapping, String slot) {
+    // Get the value for the given slot name for the given user note (and field mapping)
+    private static String getSlotValue(IncomingNote note, FieldMapping mapping, String slot) {
         return mapping.resolveSlot(note.ankiModelName, slot)
                 .map(fieldName -> fieldValue(note, fieldName))
                 .orElse("");
-    }
-
-    // answers "is this slot missing from the user's anki card?"
-    private static boolean slotFilled(IncomingNote note, FieldMapping mapping, String slot) {
-        return !slotValue(note, mapping, slot).isEmpty();
     }
 
     /** Anki's notesInfo returns each field as { value: "...", order: N }. */

@@ -15,21 +15,24 @@ import java.util.Optional;
  */
 public class FieldMapping {
     // { "<modelName>": { "<slot>": "<anki field name>", ... }, ... }
-    private final Map<String, Map<String, String>> byModel;
+    private final Map<String, Map<String, String>> modelFieldMappings;
 
     public FieldMapping(Map<String, Map<String, String>> raw) {
-        this.byModel = raw == null ? Map.of() : raw;
+        this.modelFieldMappings = raw == null ? Map.of() : raw;
     }
 
     // answers "what field name in this user's note type corresponds to this slot"
+
+    // Get the field name in the user's note type that corresponds to the given canonical slot
+    // e.g. given canonical slot name "expression", return field name "front"
     public Optional<String> resolveSlot(String modelName, String slot) {
-        Map<String, String> slots = byModel.get(modelName);
+        Map<String, String> slots = modelFieldMappings.get(modelName);
         if (slots == null) return Optional.empty();
         return Optional.ofNullable(slots.get(slot));
     }
 
-    // answers "does this user have any field-slot mapping for this note type?"
+    // Return true if there exists a slot-field mapping for the given note type
     public boolean hasModel(String modelName) {
-        return byModel.containsKey(modelName);
+        return modelFieldMappings.containsKey(modelName);
     }
 }
