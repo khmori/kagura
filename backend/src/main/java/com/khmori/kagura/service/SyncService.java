@@ -1,8 +1,10 @@
 package com.khmori.kagura.service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,8 +20,6 @@ import com.khmori.kagura.entity.UserVocab;
 import com.khmori.kagura.repository.UserKanjiRepository;
 import com.khmori.kagura.repository.UserRepository;
 import com.khmori.kagura.repository.UserVocabRepository;
-import com.khmori.kagura.repository.WordRepository;
-
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
@@ -31,20 +31,32 @@ public class SyncService {
     private final UserRepository userRepo;
     private final UserVocabRepository userVocabRepo;
     private final UserKanjiRepository kanjiRepo;
-    private final WordRepository wordRepo;
 
     @Transactional
     public SyncResponse sync(SyncRequest req) {
         User user = userRepo.findByProviderAndProviderUserId(req.provider, req.providerUserId).orElseThrow();
         FieldMapping mapping = new FieldMapping(user.getFieldMapping());
 
+        // Aggregate all existing vocab for the user into a map (note id -> UserVocab)
+        List<UserVocab> existingVocab = userVocabRepo.findByUserId(user.getId());
+        Map<Long, UserVocab> existingVocabByNoteId = new HashMap<>();
+        for (UserVocab vocab : existingVocab) {
+            existingVocabByNoteId.put(vocab.getAnkiNoteId(), vocab);
+        }
+
+        // Upsert vocab entries for the current user based on their notes
+        // Instantiate a new UserVocab (add a new row) if one does not already exist for the current note
+        List<UserVocab> toSave = new ArrayList<>();
         for (IncomingNote note : req.notes) {
             if (!mapping.hasModel(note.ankiModelName)) {
                 log.warn("no field mapping for model '{}'; skipping note {}", note.ankiModelName, note.ankiNoteId);
                 continue;
             }
-            upsertVocab(user, note, mapping); // update (or insert) the user_vocab table for the given note, for the given user
+            UserVocab vocab = existingVocabByNoteId.getOrDefault(note.ankiNoteId, new UserVocab());
+            populateVocab(vocab, user, note, mapping);
+            toSave.add(vocab);
         }
+        userVocabRepo.saveAll(toSave);
         kanjiRepo.computeScoresForUser(user.getId());
         return new SyncResponse();
     }
@@ -60,25 +72,22 @@ public class SyncService {
         }).toList();
     }
 
-    private void upsertVocab(User user, IncomingNote note, FieldMapping mapping) {
-        UserVocab userVocab = userVocabRepo.findByUserIdAndAnkiNoteId(user.getId(), note.ankiNoteId).orElseGet(UserVocab::new);
+    private void populateVocab(UserVocab vocab, User user, IncomingNote note, FieldMapping mapping) {
         String expression = getSlotValue(note, mapping, "expression");
 
-        userVocab.setUser(user);
-        userVocab.setAnkiNoteId(note.ankiNoteId);
-        userVocab.setAnkiModelName(note.ankiModelName);
-        userVocab.setExpression(expression);
-        userVocab.setSentenceFilled(!getSlotValue(note, mapping, "sentence").isEmpty());
-        userVocab.setExpressionAudioFilled(!getSlotValue(note, mapping, "expressionAudio").isEmpty());
-        userVocab.setSentenceAudioFilled(!getSlotValue(note, mapping, "sentenceAudio").isEmpty());
-        userVocab.setImageFilled(!getSlotValue(note, mapping, "image").isEmpty());
-        userVocab.setWord(wordRepo.findByWord(expression).orElse(null));
-        userVocab.setRetentionStatus(deriveStatus(note.cards));
-        userVocab.setAvgInterval(computeAvgInterval(note.cards));
-        userVocab.setCards(note.cards);
-        userVocab.setFields(note.fields);
-        userVocab.setLastSyncedAt(Instant.now());
-        userVocabRepo.save(userVocab);
+        vocab.setUser(user);
+        vocab.setAnkiNoteId(note.ankiNoteId);
+        vocab.setAnkiModelName(note.ankiModelName);
+        vocab.setExpression(expression);
+        vocab.setSentenceFilled(!getSlotValue(note, mapping, "sentence").isEmpty());
+        vocab.setExpressionAudioFilled(!getSlotValue(note, mapping, "expressionAudio").isEmpty());
+        vocab.setSentenceAudioFilled(!getSlotValue(note, mapping, "sentenceAudio").isEmpty());
+        vocab.setImageFilled(!getSlotValue(note, mapping, "image").isEmpty());
+        vocab.setRetentionStatus(deriveStatus(note.cards));
+        vocab.setAvgInterval(computeAvgInterval(note.cards));
+        vocab.setCards(note.cards);
+        vocab.setFields(note.fields);
+        vocab.setLastSyncedAt(Instant.now());
     }
 
     /**
