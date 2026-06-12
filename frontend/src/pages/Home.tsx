@@ -15,9 +15,7 @@ export default function Home() {
   const [selectedKanji, setSelectedKanji] = useState<string | null>(null);
 
   useEffect(() => {
-    getUserKanji()
-      .then(setGrid)
-      .catch(() => {});
+    getUserKanji().then(setGrid);
   }, []);
 
   async function handleSync() {
@@ -55,9 +53,7 @@ export default function Home() {
 
       {grid.length > 0 && <KanjiGrid entries={grid} onSelectKanji={setSelectedKanji} />}
 
-      {selectedKanji && (
-        <KanjiDetailsPanel kanji={selectedKanji} onClose={() => setSelectedKanji(null)} />
-      )}
+      {selectedKanji && <KanjiDetailsPanel kanji={selectedKanji} onClose={() => setSelectedKanji(null)} />}
     </div>
   );
 }

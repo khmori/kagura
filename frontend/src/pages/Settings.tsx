@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { anki, type NoteInfo } from "@/lib/anki";
 import { putUserConfig, type FieldMapping } from "@/lib/api";
@@ -20,15 +14,10 @@ export default function Settings() {
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure how Kagura reads your Anki deck.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Configure how Kagura reads your Anki deck.</p>
       </header>
       <Tabs defaultValue="sync" orientation="vertical" className="flex gap-8">
-        <TabsList
-          variant="line"
-          className="flex h-auto w-32 flex-col items-stretch gap-1 p-0"
-        >
+        <TabsList variant="line" className="flex h-auto w-32 flex-col items-stretch gap-1 p-0">
           <TabsTrigger value="sync" className={SUB_TAB}>
             Sync
           </TabsTrigger>
@@ -56,17 +45,11 @@ function SyncTab() {
   const { config, setConfig } = useConfig();
 
   const [decks, setDecks] = useState<string[]>([]);
-  const [selectedDeck, setSelectedDeck] = useState<string | null>(
-    config.selectedDeck,
-  );
-  const [fieldMapping, setFieldMapping] = useState<FieldMapping>(
-    config.fieldMapping,
-  );
+  const [selectedDeck, setSelectedDeck] = useState<string | null>(config.selectedDeck);
+  const [fieldMapping, setFieldMapping] = useState<FieldMapping>(config.fieldMapping);
 
   const [modelsInDeck, setModelsInDeck] = useState<string[]>([]);
-  const [fieldsByModel, setFieldsByModel] = useState<Record<string, string[]>>(
-    {},
-  );
+  const [fieldsByModel, setFieldsByModel] = useState<Record<string, string[]>>({});
 
   const [loadingDecks, setLoadingDecks] = useState(true);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -94,21 +77,14 @@ function SyncTab() {
       const noteIds = await anki<number[]>("findNotes", {
         query: `deck:"${selectedDeck}"`,
       });
-      const notes =
-        noteIds.length === 0
-          ? []
-          : await anki<NoteInfo[]>("notesInfo", { notes: noteIds });
+      const notes = noteIds.length === 0 ? [] : await anki<NoteInfo[]>("notesInfo", { notes: noteIds });
       if (cancelled) return;
 
       const models = Array.from(new Set(notes.map((n) => n.modelName))).sort();
       setModelsInDeck(models);
 
       const fieldEntries = await Promise.all(
-        models.map((m) =>
-          anki<string[]>("modelFieldNames", { modelName: m }).then(
-            (fields) => [m, fields] as const,
-          ),
-        ),
+        models.map((m) => anki<string[]>("modelFieldNames", { modelName: m }).then((fields) => [m, fields] as const)),
       );
       if (cancelled) return;
       const fieldsMap = Object.fromEntries(fieldEntries);
@@ -150,6 +126,7 @@ function SyncTab() {
     });
   }
 
+  // Keep track of selected deck + field mapping (context)
   async function save() {
     setSaving(true);
     setSaveMsg(null);
@@ -173,17 +150,8 @@ function SyncTab() {
     <div className="space-y-6">
       <section>
         <label className="mb-1.5 block text-sm font-medium">Deck to sync</label>
-        <Select
-          value={selectedDeck ?? ""}
-          onValueChange={(v) => setSelectedDeck(v || null)}
-        >
-          <SelectTrigger
-            className={cn(
-              TRIGGER_BASE,
-              "w-72",
-              !selectedDeck && UNMAPPED_TRIGGER,
-            )}
-          >
+        <Select value={selectedDeck ?? ""} onValueChange={(v) => setSelectedDeck(v || null)}>
+          <SelectTrigger className={cn(TRIGGER_BASE, "w-72", !selectedDeck && UNMAPPED_TRIGGER)}>
             <SelectValue placeholder="— pick a deck —" />
           </SelectTrigger>
           <SelectContent>
@@ -196,13 +164,9 @@ function SyncTab() {
         </Select>
       </section>
 
-      {selectedDeck && loadingModels && (
-        <p className="text-muted-foreground text-sm">Scanning deck…</p>
-      )}
+      {selectedDeck && loadingModels && <p className="text-muted-foreground text-sm">Scanning deck…</p>}
       {selectedDeck && !loadingModels && modelsInDeck.length === 0 && (
-        <p className="text-muted-foreground text-sm">
-          No notes found in this deck.
-        </p>
+        <p className="text-muted-foreground text-sm">No notes found in this deck.</p>
       )}
 
       <div className="space-y-4">
@@ -218,16 +182,10 @@ function SyncTab() {
       </div>
 
       <div className="flex items-center gap-3 pt-2">
-        <Button
-          onClick={save}
-          disabled={saving || !selectedDeck}
-          className="min-w-20"
-        >
+        <Button onClick={save} disabled={saving || !selectedDeck} className="min-w-20">
           {saving ? "Saving…" : "Save"}
         </Button>
-        {saveMsg && (
-          <span className="text-muted-foreground text-sm">{saveMsg}</span>
-        )}
+        {saveMsg && <span className="text-muted-foreground text-sm">{saveMsg}</span>}
       </div>
     </div>
   );
@@ -247,22 +205,14 @@ function ModelCard({
   return (
     <section className="bg-card rounded-md border p-6">
       <div className="mb-4">
-        <div className="text-xs font-medium text-muted-foreground opacity-80">
-          Note type
-        </div>
+        <div className="text-xs font-medium text-muted-foreground opacity-80">Note type</div>
         <h3 className="mt-0.5 font-semibold tracking-tight">{model}</h3>
       </div>
       <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
         {SLOTS.map((slot) => {
           const value = mapping[slot] ?? "";
           return (
-            <SlotRow
-              key={slot}
-              slot={slot}
-              value={value}
-              fields={fields}
-              onChange={(field) => onChange(slot, field)}
-            />
+            <SlotRow key={slot} slot={slot} value={value} fields={fields} onChange={(field) => onChange(slot, field)} />
           );
         })}
       </div>
@@ -285,17 +235,8 @@ function SlotRow({
   return (
     <>
       <span className="text-muted-foreground text-sm">{slot}</span>
-      <Select
-        value={value === "" ? NONE : value}
-        onValueChange={(v) => onChange(v === NONE ? "" : v)}
-      >
-        <SelectTrigger
-          className={cn(
-            TRIGGER_BASE,
-            "w-full max-w-xs",
-            !value && UNMAPPED_TRIGGER,
-          )}
-        >
+      <Select value={value === "" ? NONE : value} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
+        <SelectTrigger className={cn(TRIGGER_BASE, "w-full max-w-xs", !value && UNMAPPED_TRIGGER)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
