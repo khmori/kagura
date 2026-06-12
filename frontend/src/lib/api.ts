@@ -59,3 +59,17 @@ export async function getKanjiDetails(character: string): Promise<KanjiDetails> 
   if (!res.ok) throw new Error(`kanji details fetch failed: ${res.status}`);
   return (await res.json()) as KanjiDetails;
 }
+
+export interface ExampleSentence {
+  sentence: string;
+  wordPosition: number;
+  wordLength: number;
+  source: string;
+  difficulty: number;
+}
+
+export async function getExampleSentences(word: string): Promise<ExampleSentence[]> {
+  const res = await fetch(`${API_BASE}/api/sentences?word=${encodeURIComponent(word)}`);
+  if (!res.ok) return [];
+  return (await res.json()) as ExampleSentence[];
+}

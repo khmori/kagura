@@ -8,12 +8,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.khmori.kagura.dto.ExampleSentenceDto;
 import com.khmori.kagura.dto.KanjiDetailsDto;
 import com.khmori.kagura.dto.SyncRequest;
 import com.khmori.kagura.dto.SyncResponse;
 import com.khmori.kagura.dto.UserKanjiDto;
+import com.khmori.kagura.service.JitenService;
 import com.khmori.kagura.service.SyncService;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 @CrossOrigin(origins = "http://localhost:5173")
 public class SyncController {
     private final SyncService syncService;
+    private final JitenService jitenService;
 
     @PostMapping("/sync")
     public SyncResponse sync(@RequestBody SyncRequest req) {
@@ -38,5 +42,10 @@ public class SyncController {
     @GetMapping("/kanji/{character}")
     public KanjiDetailsDto getKanjiDetails(@PathVariable String character) {
         return syncService.getKanjiDetails(character);
+    }
+
+    @GetMapping("/sentences")
+    public List<ExampleSentenceDto> getSentences(@RequestParam String word) {
+        return jitenService.fetchSentences(word);
     }
 }

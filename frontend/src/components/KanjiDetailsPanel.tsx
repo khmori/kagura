@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { getKanjiDetails, type KanjiDetails, type WordEntry } from "@/lib/api";
+import {
+  getExampleSentences,
+  getKanjiDetails,
+  type ExampleSentence,
+  type KanjiDetails,
+  type WordEntry,
+} from "@/lib/api";
 
 const STATUS_COLORS: Record<string, string> = {
   KNOWN: "bg-green-100 text-green-800",
@@ -30,17 +36,13 @@ export function KanjiDetailsPanel({ kanji, onClose }: KanjiDetailsPanelProps) {
       <div className="p-6 space-y-6">
         {selectedWord ? (
           <WordDetailView
-            word={selectedWord}
+            wordEntry={selectedWord}
             kanji={details.kanji}
             onBack={() => setSelectedWord(null)}
             onClose={onClose}
           />
         ) : (
-          <KanjiDetailView
-            details={details}
-            onClose={onClose}
-            onSelectWord={setSelectedWord}
-          />
+          <KanjiDetailView details={details} onClose={onClose} onSelectWord={setSelectedWord} />
         )}
       </div>
     </aside>
@@ -61,14 +63,9 @@ function KanjiDetailView({
       <div className="flex items-start justify-between">
         <div>
           <p className="text-6xl font-medium">{details.kanji}</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {details.meaning?.join(", ")}
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">{details.meaning?.join(", ")}</p>
         </div>
-        <button
-          onClick={onClose}
-          className="text-muted-foreground hover:text-foreground text-xl cursor-pointer"
-        >
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl cursor-pointer">
           ✕
         </button>
       </div>
@@ -107,9 +104,7 @@ function KanjiDetailView({
       </div>
 
       <div>
-        <h3 className="text-sm font-medium mb-2">
-          Words ({details.words.length})
-        </h3>
+        <h3 className="text-sm font-medium mb-2">Words ({details.words.length})</h3>
         <ul className="space-y-2">
           {details.words.map((word) => (
             <li
@@ -119,24 +114,14 @@ function KanjiDetailView({
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium">{word.word}</span>
-                {word.reading?.length > 0 && (
-                  <span className="text-muted-foreground">
-                    {word.reading[0]}
-                  </span>
-                )}
+                {word.reading?.length > 0 && <span className="text-muted-foreground">{word.reading[0]}</span>}
                 {word.retentionStatus && (
-                  <span
-                    className={`text-xs px-1.5 py-0.5 rounded ${STATUS_COLORS[word.retentionStatus] ?? ""}`}
-                  >
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${STATUS_COLORS[word.retentionStatus] ?? ""}`}>
                     {word.retentionStatus}
                   </span>
                 )}
               </div>
-              {word.meaning?.length > 0 && (
-                <p className="text-muted-foreground mt-0.5">
-                  {word.meaning[0]}
-                </p>
-              )}
+              {word.meaning?.length > 0 && <p className="text-muted-foreground mt-0.5">{word.meaning[0]}</p>}
             </li>
           ))}
         </ul>
@@ -146,60 +131,83 @@ function KanjiDetailView({
 }
 
 function WordDetailView({
-  word,
+  wordEntry,
   kanji,
   onBack,
   onClose,
 }: {
-  word: WordEntry;
+  wordEntry: WordEntry;
   kanji: string;
   onBack: () => void;
   onClose: () => void;
 }) {
+  const [sentences, setSentences] = useState<ExampleSentence[]>([]);
+  const [loadingSentences, setLoadingSentences] = useState(false);
+
+  useEffect(() => {
+    setLoadingSentences(true);
+    setSentences([]);
+    getExampleSentences(wordEntry.word)
+      .then(setSentences)
+      .finally(() => setLoadingSentences(false));
+  }, [wordEntry.word]);
+
   return (
     <>
       <div className="flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
-        >
+        <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground cursor-pointer">
           ← Back to {kanji}
         </button>
-        <button
-          onClick={onClose}
-          className="text-muted-foreground hover:text-foreground text-xl cursor-pointer"
-        >
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl cursor-pointer">
           ✕
         </button>
       </div>
 
       <div>
-        <p className="text-4xl font-medium">{word.word}</p>
-        {word.reading?.length > 0 && (
-          <p className="mt-2 text-lg text-muted-foreground">
-            {word.reading.join("、")}
-          </p>
-        )}
+        <p className="text-4xl font-medium">{wordEntry.word}</p>
+        {wordEntry.reading?.length > 0 && <p className="mt-2 text-lg text-muted-foreground">{wordEntry.reading.join("、")}</p>}
       </div>
 
-      {word.retentionStatus && (
-        <span
-          className={`text-xs px-1.5 py-0.5 rounded inline-block ${STATUS_COLORS[word.retentionStatus] ?? ""}`}
-        >
-          {word.retentionStatus}
+      {wordEntry.retentionStatus && (
+        <span className={`text-xs px-1.5 py-0.5 rounded inline-block ${STATUS_COLORS[wordEntry.retentionStatus] ?? ""}`}>
+          {wordEntry.retentionStatus}
         </span>
       )}
 
-      {word.meaning?.length > 0 && (
+      {wordEntry.meaning?.length > 0 && (
         <div>
           <h3 className="text-sm font-medium mb-2">Meanings</h3>
           <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
-            {word.meaning.map((m, i) => (
+            {wordEntry.meaning.map((m, i) => (
               <li key={i}>{m}</li>
             ))}
           </ol>
         </div>
       )}
+
+      <div>
+        <h3 className="text-sm font-medium mb-2">Example sentences</h3>
+        {loadingSentences && <p className="text-sm text-muted-foreground">Loading...</p>}
+        {!loadingSentences && sentences.length === 0 && (
+          <p className="text-sm text-muted-foreground">No example sentences found.</p>
+        )}
+        {sentences.length > 0 && (
+          <ul className="space-y-3">
+            {sentences.map((s, i) => (
+              <li key={i} className="text-sm border-b border-border/50 pb-3">
+                <p>
+                  {s.sentence.slice(0, s.wordPosition)}
+                  <mark className="bg-yellow-200 rounded-sm px-0.5">{s.sentence.slice(s.wordPosition, s.wordPosition + s.wordLength)}</mark>
+                  {s.sentence.slice(s.wordPosition + s.wordLength)}
+                </p>
+                {s.source && (
+                  <p className="text-xs text-muted-foreground mt-1">Source: {s.source}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </>
   );
 }
