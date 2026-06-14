@@ -22,6 +22,8 @@ import com.khmori.kagura.repository.WordRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import jakarta.persistence.EntityManager;
+
 @Component
 public class DataSeeder implements CommandLineRunner {
     private static final String KANJIDIC_PATH = "../dicts/kanjidic2-en-3.6.2.json";
@@ -33,12 +35,14 @@ public class DataSeeder implements CommandLineRunner {
     private final KanjiRepository kanjiRepository;
     private final WordRepository wordRepository;
     private final UserRepository userRepository;
+    private final EntityManager entityManager;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public DataSeeder(KanjiRepository kanjiRepository, WordRepository wordRepository, UserRepository userRepository) {
+    public DataSeeder(KanjiRepository kanjiRepository, WordRepository wordRepository, UserRepository userRepository, EntityManager entityManager) {
         this.kanjiRepository = kanjiRepository;
         this.wordRepository = wordRepository;
         this.userRepository = userRepository;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -67,6 +71,7 @@ public class DataSeeder implements CommandLineRunner {
 
         JsonNode root = mapper.readTree(new File(KANJIDIC_PATH));
         JsonNode characters = root.get("characters");
+        int kanjiCount = 0;
 
         for (JsonNode character : characters) {
             Kanji kanji = new Kanji();
@@ -131,8 +136,14 @@ public class DataSeeder implements CommandLineRunner {
                     kanji.setRadicalNelson(value);
             }
 
-            kanjiRepository.save(kanji);
+            entityManager.persist(kanji);
+            if (++kanjiCount % 500 == 0) {
+                entityManager.flush();
+                entityManager.clear();
+            }
         }
+        entityManager.flush();
+        entityManager.clear();
 
         System.out.println("Kanji table seeded.");
     }
@@ -144,8 +155,8 @@ public class DataSeeder implements CommandLineRunner {
         JsonNode jmdictWords = root.path("words");
         Set<String> seen = new HashSet<>();
         int entryCount = 0;
+        int savedCount = 0;
 
-        // Per-word meanings are shared across all surface forms (kanji + kana entries).
         for (JsonNode entry : jmdictWords) {
             if (++entryCount % 20000 == 0) {
                 System.out.printf("  ...processed %d entries, %d unique words%n", entryCount, seen.size());
@@ -182,7 +193,11 @@ public class DataSeeder implements CommandLineRunner {
                     word.setReading(readings.toArray(new String[0]));
                     word.setMeaning(meaningArr);
                     word.setCommon(kanjiForm.get("common").asBoolean());
-                    wordRepository.save(word);
+                    entityManager.persist(word);
+                    if (++savedCount % 1000 == 0) {
+                        entityManager.flush();
+                        entityManager.clear();
+                    }
                 }
             } else if (kanaForms != null && kanaForms.size() > 0) {
                 // Kana-only entry — the kana text IS the word.
@@ -195,11 +210,17 @@ public class DataSeeder implements CommandLineRunner {
                     word.setReading(new String[] { text });
                     word.setMeaning(meaningArr);
                     word.setCommon(kanaForm.get("common").asBoolean());
-                    wordRepository.save(word);
+                    entityManager.persist(word);
+                    if (++savedCount % 1000 == 0) {
+                        entityManager.flush();
+                        entityManager.clear();
+                    }
                 }
             }
         }
 
+        entityManager.flush();
+        entityManager.clear();
         System.out.println("Word table seeded.");
     }
 
