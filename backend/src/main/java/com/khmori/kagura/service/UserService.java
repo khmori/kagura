@@ -20,6 +20,7 @@ public class UserService {
         config.selectedDeck = user.getSelectedDeck();
         config.fieldMapping = user.getFieldMapping();
         config.studyMode = user.getStudyMode();
+        config.targetLevel = user.getTargetLevel();
         return config;
     }
 
@@ -33,6 +34,7 @@ public class UserService {
         if (config.studyMode != null) {
             user.setStudyMode(config.studyMode);
         }
+        user.setTargetLevel(config.targetLevel);
         userRepo.save(user);
     }
 }

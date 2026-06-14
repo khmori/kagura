@@ -26,9 +26,13 @@ public class RecommendationService {
      * list: the specific kanji in the word that the user currently knows at a shaky
      * level (proficiency 0.3–0.6). This tells the frontend which kanji benefit from
      * learning this word.
+     *
+     * When studyMode and targetLevel are set, only words containing at least one kanji
+     * at the target level are returned (e.g. JLPT N2 kanji, Kanken 準2級 kanji).
+     * When no goal is set, all words with frequency data are considered.
      */
-    public List<RecommendedWordDto> getRecommendedWords(Integer userId, int limit) {
-        List<Object[]> scoredWords = wordRepository.findRecommendedWords(userId, limit);
+    public List<RecommendedWordDto> getRecommendedWords(Integer userId, String studyMode, String targetLevel, int limit) {
+        List<Object[]> scoredWords = fetchScoredWords(userId, studyMode, targetLevel, limit);
 
         List<UserKanji> shakyKanji = userKanjiRepository.findByUserIdOrderByProficiencyScoreDesc(userId)
                 .stream()
@@ -56,6 +60,16 @@ public class RecommendationService {
             recommendations.add(dto);
         }
         return recommendations;
+    }
+
+    private List<Object[]> fetchScoredWords(Integer userId, String studyMode, String targetLevel, int limit) {
+        if (targetLevel != null && "jlpt".equals(studyMode)) {
+            return wordRepository.findRecommendedWordsByJlpt(userId, Integer.parseInt(targetLevel), limit);
+        }
+        if (targetLevel != null && "kanken".equals(studyMode)) {
+            return wordRepository.findRecommendedWordsByKanken(userId, Double.parseDouble(targetLevel), limit);
+        }
+        return wordRepository.findRecommendedWords(userId, limit);
     }
 
     private String[] parseTextArray(Object raw) {

@@ -11,10 +11,11 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface KanjiDetailsPanelProps {
   kanji: string;
+  onSelectKanji: (kanji: string) => void;
   onClose: () => void;
 }
 
-export function KanjiDetailsPanel({ kanji, onClose }: KanjiDetailsPanelProps) {
+export function KanjiDetailsPanel({ kanji, onSelectKanji, onClose }: KanjiDetailsPanelProps) {
   const [details, setDetails] = useState<KanjiDetails | null>(null);
   const [selectedWord, setSelectedWord] = useState<WordEntry | null>(null);
 
@@ -26,33 +27,18 @@ export function KanjiDetailsPanel({ kanji, onClose }: KanjiDetailsPanelProps) {
 
   if (!details) return null;
 
-  return (
-    <aside className="fixed right-0 top-0 h-full w-96 border-l bg-background shadow-lg overflow-y-auto z-50">
-      <div className="p-6 space-y-6">
-        {selectedWord ? (
-          <WordDetailView
-            wordEntry={selectedWord}
-            backLabel={`Back to ${details.kanji}`}
-            onBack={() => setSelectedWord(null)}
-            onClose={onClose}
-          />
-        ) : (
-          <KanjiDetailView details={details} onClose={onClose} onSelectWord={setSelectedWord} />
-        )}
-      </div>
-    </aside>
-  );
-}
+  if (selectedWord) {
+    return (
+      <WordDetailView
+        wordEntry={selectedWord}
+        backLabel={`Back to ${details.kanji}`}
+        onBack={() => setSelectedWord(null)}
+        onClose={onClose}
+        onSelectKanji={onSelectKanji}
+      />
+    );
+  }
 
-function KanjiDetailView({
-  details,
-  onClose,
-  onSelectWord,
-}: {
-  details: KanjiDetails;
-  onClose: () => void;
-  onSelectWord: (word: WordEntry) => void;
-}) {
   return (
     <>
       <div className="flex items-start justify-between">
@@ -110,7 +96,7 @@ function KanjiDetailView({
           {details.words.map((word) => (
             <li
               key={word.word}
-              onClick={() => onSelectWord(word)}
+              onClick={() => setSelectedWord(word)}
               className="text-sm border-b border-border/50 pb-2 cursor-pointer hover:bg-muted/50 -mx-2 px-2 py-1 rounded"
             >
               <div className="flex items-center gap-2">
@@ -130,4 +116,3 @@ function KanjiDetailView({
     </>
   );
 }
-

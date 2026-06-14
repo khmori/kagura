@@ -3,17 +3,23 @@ import { Callout } from "@/components/Callout";
 import { KanjiDetailsPanel } from "@/components/KanjiDetailsPanel";
 import { KanjiGrid, GroupedKanjiGrid } from "@/components/KanjiGrid";
 import { RecommendedWords } from "@/components/RecommendedWords";
+import { WordDetailView } from "@/components/WordDetailView";
 import { Button } from "@/components/ui/button";
-import { getUserKanji, type UserKanjiDto } from "@/lib/api";
+import { getUserKanji, type UserKanjiDto, type WordEntry } from "@/lib/api";
 import { useConfig } from "@/lib/config-context";
 import { probe } from "@/lib/anki";
 import { sync } from "@/lib/sync";
+
+type PanelState =
+  | { type: "kanji"; kanji: string }
+  | { type: "word"; wordEntry: WordEntry; backLabel: string; back: PanelState | null }
+  | null;
 
 export default function Home() {
   const { config } = useConfig();
   const [grid, setGrid] = useState<UserKanjiDto[]>([]);
   const [syncing, setSyncing] = useState(false);
-  const [selectedKanji, setSelectedKanji] = useState<string | null>(null);
+  const [panel, setPanel] = useState<PanelState>(null);
 
   useEffect(() => {
     getUserKanji().then(setGrid);
@@ -27,6 +33,18 @@ export default function Home() {
     } finally {
       setSyncing(false);
     }
+  }
+
+  function openKanji(kanji: string) {
+    setPanel({ type: "kanji", kanji });
+  }
+
+  function openWordFromRecommendations(wordEntry: WordEntry) {
+    setPanel({ type: "word", wordEntry, backLabel: "Back to recommendations", back: null });
+  }
+
+  function closePanel() {
+    setPanel(null);
   }
 
   return (
@@ -52,15 +70,35 @@ export default function Home() {
         </Button>
       </section>
 
-      {grid.length > 0 && <RecommendedWords />}
+      {grid.length > 0 && <RecommendedWords onSelectWord={openWordFromRecommendations} />}
 
       {grid.length > 0 && config.studyMode !== "none" ? (
-        <GroupedKanjiGrid entries={grid} mode={config.studyMode} onSelectKanji={setSelectedKanji} />
+        <GroupedKanjiGrid entries={grid} mode={config.studyMode} onSelectKanji={openKanji} />
       ) : grid.length > 0 ? (
-        <KanjiGrid entries={grid} onSelectKanji={setSelectedKanji} />
+        <KanjiGrid entries={grid} onSelectKanji={openKanji} />
       ) : null}
 
-      {selectedKanji && <KanjiDetailsPanel kanji={selectedKanji} onClose={() => setSelectedKanji(null)} />}
+      {panel && (
+        <aside className="fixed right-0 top-0 h-full w-96 border-l bg-background shadow-lg overflow-y-auto z-50">
+          <div className="p-6 space-y-6">
+            {panel.type === "kanji" ? (
+              <KanjiDetailsPanel
+                kanji={panel.kanji}
+                onSelectKanji={openKanji}
+                onClose={closePanel}
+              />
+            ) : (
+              <WordDetailView
+                wordEntry={panel.wordEntry}
+                backLabel={panel.backLabel}
+                onBack={() => setPanel(panel.back)}
+                onClose={closePanel}
+                onSelectKanji={openKanji}
+              />
+            )}
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

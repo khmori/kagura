@@ -17,6 +17,8 @@ import com.khmori.kagura.dto.RecommendedWordDto;
 import com.khmori.kagura.dto.SyncRequest;
 import com.khmori.kagura.dto.SyncResponse;
 import com.khmori.kagura.dto.UserKanjiDto;
+import com.khmori.kagura.entity.User;
+import com.khmori.kagura.repository.UserRepository;
 import com.khmori.kagura.service.JitenService;
 import com.khmori.kagura.service.RecommendationService;
 import com.khmori.kagura.service.SyncService;
@@ -31,6 +33,7 @@ public class SyncController {
     private final SyncService syncService;
     private final JitenService jitenService;
     private final RecommendationService recommendationService;
+    private final UserRepository userRepository;
 
     @PostMapping("/sync")
     public SyncResponse sync(@RequestBody SyncRequest req) {
@@ -54,6 +57,7 @@ public class SyncController {
 
     @GetMapping("/recommended-words")
     public List<RecommendedWordDto> getRecommendedWords(@RequestParam(defaultValue = "20") int limit) {
-        return recommendationService.getRecommendedWords(1, limit);
+        User user = userRepository.findByProviderAndProviderUserId("manual", "test-1").orElseThrow();
+        return recommendationService.getRecommendedWords(user.getId(), user.getStudyMode(), user.getTargetLevel(), limit);
     }
 }

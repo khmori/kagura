@@ -10,14 +10,20 @@ const STATUS_COLORS: Record<string, string> = {
   SUSPENDED: "bg-red-100 text-red-800",
 };
 
+function isKanji(char: string): boolean {
+  const code = char.codePointAt(0) ?? 0;
+  return code >= 0x4e00 && code <= 0x9fff;
+}
+
 interface WordDetailViewProps {
   wordEntry: WordEntry;
   backLabel?: string;
   onBack: () => void;
   onClose: () => void;
+  onSelectKanji?: (kanji: string) => void;
 }
 
-export function WordDetailView({ wordEntry, backLabel, onBack, onClose }: WordDetailViewProps) {
+export function WordDetailView({ wordEntry, backLabel, onBack, onClose, onSelectKanji }: WordDetailViewProps) {
   const { config } = useConfig();
   const [sentences, setSentences] = useState<ExampleSentence[]>([]);
   const [loadingSentences, setLoadingSentences] = useState(false);
@@ -86,7 +92,23 @@ export function WordDetailView({ wordEntry, backLabel, onBack, onClose }: WordDe
       </div>
 
       <div>
-        <p className="text-4xl font-medium">{wordEntry.word}</p>
+        <p className="text-4xl font-medium">
+          {onSelectKanji
+            ? [...wordEntry.word].map((char, i) =>
+                isKanji(char) ? (
+                  <span
+                    key={i}
+                    onClick={() => onSelectKanji(char)}
+                    className="cursor-pointer underline decoration-dotted decoration-2 decoration-muted-foreground/40 underline-offset-4 hover:text-primary transition-colors"
+                  >
+                    {char}
+                  </span>
+                ) : (
+                  <span key={i}>{char}</span>
+                ),
+              )
+            : wordEntry.word}
+        </p>
         {wordEntry.reading?.length > 0 && (
           <p className="mt-2 text-lg text-muted-foreground">{wordEntry.reading.join("、")}</p>
         )}

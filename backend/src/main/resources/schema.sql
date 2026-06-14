@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS users (
     selected_deck    TEXT,
     -- 'none' | 'jlpt' | 'kanken'
     study_mode       TEXT NOT NULL DEFAULT 'none',
+    -- e.g. '2' for JLPT N2, '2.5' for Kanken 準2級. Null = no goal set.
+    target_level     TEXT,
     created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (provider, provider_user_id)
 );

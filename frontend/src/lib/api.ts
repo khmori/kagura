@@ -5,6 +5,7 @@ export interface UserConfig {
   selectedDeck: string | null;
   fieldMapping: FieldMapping;
   studyMode: "none" | "jlpt" | "kanken";
+  targetLevel: string | null;
 }
 
 export const API_BASE = "http://localhost:8080";

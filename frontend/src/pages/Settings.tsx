@@ -48,6 +48,7 @@ function SyncTab() {
   const [selectedDeck, setSelectedDeck] = useState<string | null>(config.selectedDeck);
   const [fieldMapping, setFieldMapping] = useState<FieldMapping>(config.fieldMapping);
   const [studyMode, setStudyMode] = useState<"none" | "jlpt" | "kanken">(config.studyMode);
+  const [targetLevel, setTargetLevel] = useState<string | null>(config.targetLevel);
 
   const [modelsInDeck, setModelsInDeck] = useState<string[]>([]);
   const [fieldsByModel, setFieldsByModel] = useState<Record<string, string[]>>({});
@@ -132,7 +133,7 @@ function SyncTab() {
     setSaving(true);
     setSaveMsg(null);
     try {
-      const updated = { selectedDeck, fieldMapping, studyMode };
+      const updated = { selectedDeck, fieldMapping, studyMode, targetLevel };
       await putUserConfig(updated);
       setConfig(updated);
       setSaveMsg("Saved.");
@@ -154,7 +155,13 @@ function SyncTab() {
         <p className="mb-1.5 text-xs text-muted-foreground">
           Organize the kanji grid by certification level.
         </p>
-        <Select value={studyMode} onValueChange={(v) => setStudyMode(v as "none" | "jlpt" | "kanken")}>
+        <Select
+          value={studyMode}
+          onValueChange={(v) => {
+            setStudyMode(v as "none" | "jlpt" | "kanken");
+            setTargetLevel(null);
+          }}
+        >
           <SelectTrigger className={cn(TRIGGER_BASE, "w-72")}>
             <SelectValue />
           </SelectTrigger>
@@ -164,6 +171,49 @@ function SyncTab() {
             <SelectItem value="kanken">Kanken</SelectItem>
           </SelectContent>
         </Select>
+
+        {studyMode === "jlpt" && (
+          <div className="mt-3">
+            <label className="mb-1.5 block text-sm font-medium">Target level</label>
+            <Select value={targetLevel ?? ""} onValueChange={(v) => setTargetLevel(v || null)}>
+              <SelectTrigger className={cn(TRIGGER_BASE, "w-72")}>
+                <SelectValue placeholder="— pick a level —" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">N5</SelectItem>
+                <SelectItem value="4">N4</SelectItem>
+                <SelectItem value="3">N3</SelectItem>
+                <SelectItem value="2">N2</SelectItem>
+                <SelectItem value="1">N1</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {studyMode === "kanken" && (
+          <div className="mt-3">
+            <label className="mb-1.5 block text-sm font-medium">Target level</label>
+            <Select value={targetLevel ?? ""} onValueChange={(v) => setTargetLevel(v || null)}>
+              <SelectTrigger className={cn(TRIGGER_BASE, "w-72")}>
+                <SelectValue placeholder="— pick a level —" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10級</SelectItem>
+                <SelectItem value="9">9級</SelectItem>
+                <SelectItem value="8">8級</SelectItem>
+                <SelectItem value="7">7級</SelectItem>
+                <SelectItem value="6">6級</SelectItem>
+                <SelectItem value="5">5級</SelectItem>
+                <SelectItem value="4">4級</SelectItem>
+                <SelectItem value="3">3級</SelectItem>
+                <SelectItem value="2.5">準2級</SelectItem>
+                <SelectItem value="2">2級</SelectItem>
+                <SelectItem value="1.5">準1級</SelectItem>
+                <SelectItem value="1">1級</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </section>
 
       <section>

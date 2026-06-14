@@ -54,4 +54,62 @@ public interface WordRepository extends JpaRepository<Word, Integer> {
         LIMIT :lim
         """)
     List<Object[]> findRecommendedWords(@Param("userId") Integer userId, @Param("lim") int lim);
+
+    /**
+     * Same scoring as {@link #findRecommendedWords}, but restricted to words that contain
+     * at least one kanji at the given JLPT level (e.g. level=2 for N2).
+     */
+    @Query(nativeQuery = true, value = """
+        SELECT w.id, w.word, w.reading, w.meaning, w.frequency_rank,
+               (1.0 / LN(w.frequency_rank + 2)) * (0.3 + 0.7 * COALESCE(AVG(uk.proficiency_score), 0)) AS score
+        FROM words w
+        JOIN kanji_words kw ON kw.word_id = w.id
+        CROSS JOIN LATERAL regexp_split_to_table(w.word, '') AS ch
+        LEFT JOIN kanji k ON k.kanji = ch
+        LEFT JOIN user_kanji uk ON uk.kanji_id = k.id AND uk.user_id = :userId
+        WHERE w.frequency_rank IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM user_vocab uv
+              WHERE uv.user_id = :userId AND uv.word_id = w.id
+          )
+          AND EXISTS (
+              SELECT 1 FROM kanji_words kw2
+              JOIN kanji k2 ON k2.id = kw2.kanji_id
+              WHERE kw2.word_id = w.id AND k2.jlpt_level = :level
+          )
+        GROUP BY w.id
+        ORDER BY score DESC
+        LIMIT :lim
+        """)
+    List<Object[]> findRecommendedWordsByJlpt(
+            @Param("userId") Integer userId, @Param("level") int level, @Param("lim") int lim);
+
+    /**
+     * Same scoring as {@link #findRecommendedWords}, but restricted to words that contain
+     * at least one kanji at the given Kanken level (e.g. level=2.5 for 準2級).
+     */
+    @Query(nativeQuery = true, value = """
+        SELECT w.id, w.word, w.reading, w.meaning, w.frequency_rank,
+               (1.0 / LN(w.frequency_rank + 2)) * (0.3 + 0.7 * COALESCE(AVG(uk.proficiency_score), 0)) AS score
+        FROM words w
+        JOIN kanji_words kw ON kw.word_id = w.id
+        CROSS JOIN LATERAL regexp_split_to_table(w.word, '') AS ch
+        LEFT JOIN kanji k ON k.kanji = ch
+        LEFT JOIN user_kanji uk ON uk.kanji_id = k.id AND uk.user_id = :userId
+        WHERE w.frequency_rank IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM user_vocab uv
+              WHERE uv.user_id = :userId AND uv.word_id = w.id
+          )
+          AND EXISTS (
+              SELECT 1 FROM kanji_words kw2
+              JOIN kanji k2 ON k2.id = kw2.kanji_id
+              WHERE kw2.word_id = w.id AND k2.kanken_level = :level
+          )
+        GROUP BY w.id
+        ORDER BY score DESC
+        LIMIT :lim
+        """)
+    List<Object[]> findRecommendedWordsByKanken(
+            @Param("userId") Integer userId, @Param("level") double level, @Param("lim") int lim);
 }
