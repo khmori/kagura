@@ -18,6 +18,7 @@ public class KanjiDetailsDto {
         public String[] reading;
         public String[] meaning;
         public boolean common;
+        public Integer frequencyRank;
         public String retentionStatus;
     }
 }

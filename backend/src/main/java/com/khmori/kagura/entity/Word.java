@@ -31,6 +31,9 @@ public class Word {
     @Column
     private Integer jlpt;
 
+    @Column(name = "frequency_rank")
+    private Integer frequencyRank;
+
     @ManyToMany(mappedBy = "words")
     private Set<Kanji> kanji = new HashSet<>();
 }

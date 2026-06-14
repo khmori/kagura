@@ -13,10 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.khmori.kagura.dto.ExampleSentenceDto;
 import com.khmori.kagura.dto.KanjiDetailsDto;
+import com.khmori.kagura.dto.RecommendedWordDto;
 import com.khmori.kagura.dto.SyncRequest;
 import com.khmori.kagura.dto.SyncResponse;
 import com.khmori.kagura.dto.UserKanjiDto;
 import com.khmori.kagura.service.JitenService;
+import com.khmori.kagura.service.RecommendationService;
 import com.khmori.kagura.service.SyncService;
 
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class SyncController {
     private final SyncService syncService;
     private final JitenService jitenService;
+    private final RecommendationService recommendationService;
 
     @PostMapping("/sync")
     public SyncResponse sync(@RequestBody SyncRequest req) {
@@ -47,5 +50,10 @@ public class SyncController {
     @GetMapping("/sentences")
     public List<ExampleSentenceDto> getSentences(@RequestParam String word) {
         return jitenService.fetchSentences(word);
+    }
+
+    @GetMapping("/recommended-words")
+    public List<RecommendedWordDto> getRecommendedWords(@RequestParam(defaultValue = "20") int limit) {
+        return recommendationService.getRecommendedWords(1, limit);
     }
 }

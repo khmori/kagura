@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Callout } from "@/components/Callout";
 import { KanjiDetailsPanel } from "@/components/KanjiDetailsPanel";
 import { KanjiGrid, GroupedKanjiGrid } from "@/components/KanjiGrid";
+import { RecommendedWords } from "@/components/RecommendedWords";
 import { Button } from "@/components/ui/button";
 import { getUserKanji, type UserKanjiDto } from "@/lib/api";
 import { useConfig } from "@/lib/config-context";
@@ -50,6 +51,8 @@ export default function Home() {
           Probe
         </Button>
       </section>
+
+      {grid.length > 0 && <RecommendedWords />}
 
       {grid.length > 0 && config.studyMode !== "none" ? (
         <GroupedKanjiGrid entries={grid} mode={config.studyMode} onSelectKanji={setSelectedKanji} />

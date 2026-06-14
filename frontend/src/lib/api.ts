@@ -55,6 +55,7 @@ export interface WordEntry {
   reading: string[];
   meaning: string[];
   common: boolean;
+  frequencyRank: number | null;
   retentionStatus: string | null;
 }
 
@@ -76,4 +77,20 @@ export async function getExampleSentences(word: string): Promise<ExampleSentence
   const res = await fetch(`${API_BASE}/api/sentences?word=${encodeURIComponent(word)}`);
   if (!res.ok) return [];
   return (await res.json()) as ExampleSentence[];
+}
+
+export interface RecommendedWord {
+  id: number;
+  word: string;
+  reading: string[];
+  meaning: string[];
+  frequencyRank: number;
+  score: number;
+  reinforces: string[];
+}
+
+export async function getRecommendedWords(limit = 20): Promise<RecommendedWord[]> {
+  const res = await fetch(`${API_BASE}/api/recommended-words?limit=${limit}`);
+  if (!res.ok) return [];
+  return (await res.json()) as RecommendedWord[];
 }

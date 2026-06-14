@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS words (
     reading TEXT[],
     meaning TEXT[],
     common BOOLEAN DEFAULT FALSE,
-    jlpt INT
+    jlpt INT,
+    frequency_rank INT
 );
 
 CREATE TABLE IF NOT EXISTS kanji_words (

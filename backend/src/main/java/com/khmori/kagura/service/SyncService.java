@@ -118,6 +118,7 @@ public class SyncService {
             entry.reading = word.getReading();
             entry.meaning = word.getMeaning();
             entry.common = word.getCommon() != null && word.getCommon();
+            entry.frequencyRank = word.getFrequencyRank();
             RetentionStatus status = statusByExpression.get(word.getWord());
             entry.retentionStatus = status != null ? status.name() : null;
             words.add(entry);

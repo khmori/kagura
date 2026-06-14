@@ -28,6 +28,7 @@ public class DataSeeder implements CommandLineRunner {
     private static final String JMDICT_PATH = "../dicts/jmdict-eng-3.6.2.json";
     private static final String JLPT_LEVEL_PATH = "../dicts/jlpt_level.json";
     private static final String KANKEN_LEVEL_PATH = "../dicts/kanji_kentei_level.json";
+    private static final String INNOCENT_CORPUS_DIR = "../dicts/innocent_corpus";
 
     private final KanjiRepository kanjiRepository;
     private final WordRepository wordRepository;
@@ -58,6 +59,7 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         seedLevels();
+        seedFrequency();
     }
 
     private void seedKanji() throws Exception {
@@ -282,6 +284,55 @@ public class DataSeeder implements CommandLineRunner {
         if (groupName.contains("準2")) return 2.5;
         if (groupName.contains("準1")) return 1.5;
         return Double.parseDouble(groupName.replaceAll("\\D+", ""));
+    }
+
+    private void seedFrequency() throws Exception {
+        if (wordRepository.countByFrequencyRankIsNotNull() > 0) {
+            System.out.println("Word frequency already seeded.");
+            return;
+        }
+
+        System.out.println("Seeding word frequency from Innocent Corpus...");
+
+        File dir = new File(INNOCENT_CORPUS_DIR);
+        File[] bankFiles = dir.listFiles((d, name) -> name.startsWith("term_meta_bank_") && name.endsWith(".json"));
+        if (bankFiles == null || bankFiles.length == 0) {
+            System.out.println("No Innocent Corpus bank files found, skipping frequency seed.");
+            return;
+        }
+
+        // Collect (word, occurrenceCount) from all bank files
+        List<Object[]> entries = new ArrayList<>();
+        for (File f : bankFiles) {
+            JsonNode bank = mapper.readTree(f);
+            for (JsonNode entry : bank) {
+                String word = entry.get(0).asText();
+                long count = entry.get(2).asLong();
+                entries.add(new Object[] { word, count });
+            }
+        }
+
+        // Sort by occurrence count descending, assign rank
+        entries.sort((a, b) -> Long.compare((long) b[1], (long) a[1]));
+
+        Map<String, Integer> wordToRank = new HashMap<>();
+        for (int i = 0; i < entries.size(); i++) {
+            String word = (String) entries.get(i)[0];
+            wordToRank.putIfAbsent(word, i + 1);
+        }
+
+        int matched = 0;
+        List<Word> allWords = wordRepository.findAll();
+        for (Word w : allWords) {
+            Integer rank = wordToRank.get(w.getWord());
+            if (rank != null) {
+                w.setFrequencyRank(rank);
+                matched++;
+            }
+        }
+
+        wordRepository.saveAll(allWords);
+        System.out.printf("Word frequency seeded: %d/%d corpus entries matched a word row.%n", matched, wordToRank.size());
     }
 
     // Test user for Pass 1 dev. Idempotent — re-uses existing row on subsequent boots.
