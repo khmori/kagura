@@ -7,4 +7,6 @@ import java.util.Map;
 public class UserConfig {
     public String selectedDeck;
     public Map<String, Map<String, String>> fieldMapping;
+    public String studyMode;
+    public String targetLevel;
 }

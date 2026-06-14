@@ -5,10 +5,12 @@ import java.util.Set;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Table(name = "words")
 @Data
+@EqualsAndHashCode(exclude = "kanji")
 public class Word {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,6 +30,9 @@ public class Word {
 
     @Column
     private Integer jlpt;
+
+    @Column(name = "frequency_rank")
+    private Integer frequencyRank;
 
     @ManyToMany(mappedBy = "words")
     private Set<Kanji> kanji = new HashSet<>();

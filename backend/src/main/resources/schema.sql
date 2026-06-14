@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS kanji (
     meaning TEXT[],
     grade INT,
     jlpt_level INT,
+    kanken_level DOUBLE PRECISION,
     stroke_count INT,
     frequency INT,
     radical_classical INT,
@@ -20,7 +21,8 @@ CREATE TABLE IF NOT EXISTS words (
     reading TEXT[],
     meaning TEXT[],
     common BOOLEAN DEFAULT FALSE,
-    jlpt INT
+    jlpt INT,
+    frequency_rank INT
 );
 
 CREATE TABLE IF NOT EXISTS kanji_words (
@@ -40,6 +42,10 @@ CREATE TABLE IF NOT EXISTS users (
     field_mapping    JSONB NOT NULL DEFAULT '{}'::jsonb,
     -- Anki deck the user has chosen to sync from. Null until Setup is completed.
     selected_deck    TEXT,
+    -- 'none' | 'jlpt' | 'kanken'
+    study_mode       TEXT NOT NULL DEFAULT 'none',
+    -- e.g. '2' for JLPT N2, '2.5' for Kanken 準2級. Null = no goal set.
+    target_level     TEXT,
     created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (provider, provider_user_id)
 );
@@ -66,6 +72,8 @@ CREATE TABLE IF NOT EXISTS user_vocab (
     -- per-note proficiency status, derived from the note's card(s) by the proficiency engine
     -- KNOWN | SHAKY | NEW | SUSPENDED
     retention_status TEXT NOT NULL,
+
+    avg_interval     DOUBLE PRECISION,
 
     -- raw card scheduling data, one entry per card
     -- [{ cardId, interval, lapses, reps, factor, queue, type, due }, ...]

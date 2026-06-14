@@ -67,6 +67,10 @@ public class UserVocab {
     @Column(name = "retention_status", nullable = false)
     private RetentionStatus retentionStatus;
 
+    // mean card interval over all cards pertaining to this vocab entry (null if no cards available)
+    @Column(name = "avg_interval")
+    private Double avgInterval;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb", nullable = false)
     private List<Map<String, Object>> cards = new ArrayList<>();

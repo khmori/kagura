@@ -8,6 +8,25 @@ Kagura is a Japanese learner's dashboard that syncs with Anki via AnkiConnect, c
 
 **Status:** mid-pivot. The repo originally implemented a kanji graph visualization (see commits `2f8a415`, `6fecd84`). The frontend is being rewritten and the schema is being extended for the Anki-sync dashboard. Existing kanji/word ingestion is being kept; graph edges/scoring and the old DTO/recommendation-service work is parked.
 
+## Core product flow (north star)
+
+The one loop Kagura is built around. Everything else is supporting cast.
+
+1. **Sync the deck → kanji grid + estimated level.** Read the user's Anki cards, compute per-kanji proficiency, render a grid colored by `known` (green/yellow/gray). Estimated JLPT/Kanken level sits on top.
+2. **Click a kanji → detail panel.** Kanji metadata (stroke count, readings, meaning from KANJIDIC) plus the compound words that use it.
+3. **Compound words = JMDICT-wide, frequency-ranked, colored by deck status.** Not just the words in the user's deck — *all* JMDICT words containing the kanji, sorted most-common-first, each tagged KNOWN / SHAKY / NEW by joining against `user_vocab`. The list shows both what the user knows and the common words they're missing.
+4. **Per word → fetch an example (Nadeshiko et al.).** At the leaf, pull an example sentence + image for a word and add/enrich it in Anki. See "Card enrichment (Nadeshiko)" below.
+
+**The one idea:** the grid is a *study planner*, not a report card. Weak kanji → the common words using it → the ones the user is missing → learn/enrich them. That loop is the product; the level estimate and grid are how you navigate into it.
+
+**Build order follows the data dependency.** Steps 1–3 run entirely on local seeded data (KANJIDIC + JMDICT + `user_vocab`) — no external calls, so build these first; they're also the safe-to-demo core. Step 4 needs an external API → build last, keep it at the edge so a flaky/rate-limited Nadeshiko never breaks the grid.
+
+**This fuses Browse and Discover.** The earlier split (`/` Browse = your deck, `/discover` = new words) collapses into one drill-down: the kanji detail panel shows known *and* unknown words together. A separate Discover page may still exist for free search, but the primary discovery surface is now the per-kanji word list.
+
+Two data costs to know before committing:
+- **Stroke order is not in KANJIDIC** — it only has stroke *count* (an int). Animated stroke-order diagrams need **KanjiVG** (separate SVG dataset, new seed pass + frontend render). Stroke count + readings + radical is enough to make the detail panel substantial without it; scope KanjiVG as its own task.
+- **JMDICT frequency is coarse** — no clean frequency float, just tags (`news1/2`, `ichi1/2`, `spec1/2`, `nf01`–`nf48`). Pick a heuristic to collapse those into one sort key; the ranking will be chunky, not smooth.
+
 ## Commands (run from repo root)
 
 - `make run` — start Spring Boot dev server (`./mvnw spring-boot:run` in `backend/`)
@@ -46,9 +65,31 @@ Schema source of truth is `backend/src/main/resources/schema.sql`, applied along
 
 ### Proficiency model (planned, not yet implemented)
 
-- Card retention: `KNOWN` = interval > 21d AND lapses < 3; `SHAKY` = card exists but below threshold; `NEW` = unseen; `SUSPENDED` = all cards suspended. Enum exists at `entity/RetentionStatus.java`; `SyncService.upsertVocab` currently hardcodes `NEW`.
-- Kanji proficiency = fraction of common words containing that kanji that the user knows.
-- Estimated JLPT/Kanken level = highest level where user knows ≥80% of that level's kanji/vocab.
+Two separate signals, computed from the same card data:
+
+**Per-word retention (`user_vocab.retention_status`).** A bucket for the Browse UI's color coding, derived per note from its cards:
+- Drop suspended cards (`queue == -1`).
+- Any remaining card with `interval > 21 && lapses < 3` → **KNOWN**.
+- Any remaining card otherwise → **SHAKY**.
+- Had cards but all suspended → **SUSPENDED**.
+- No cards → **NEW**.
+
+Best-status-wins (if any card is mature, the word is KNOWN) — generous on purpose: a word you know in recognition is "known" even if production is shaky. `SyncService.upsertVocab` currently hardcodes `NEW`; the enum is in `entity/RetentionStatus.java`.
+
+**Per-kanji proficiency (`user_kanji.proficiency_score`).** Kanjigrid-style continuous score, not a binary KNOWN-fraction. For each kanji `K`:
+```
+avg_interval = mean(card.interval for word in user_vocab containing K
+                                  for card in word.cards
+                                  where card.queue != -1 AND card.type > 0)
+raw          = avg_interval / 21
+score        = 1 - 1 / (raw + 1)**2    # maps [0,∞) → [0,1), 0.75 at avg=21d
+known        = score >= 0.5            # ≈ avg_interval ≥ 9d, tunable
+```
+No JMDICT commonness filter — the user's deck *is* the inventory. If they study it, it counts. Filtering by `words.common` would erase signal for the mining/immersion audience that lives on rare vocabulary. Threshold of 0.5 is a guess — eyeball results, tune later.
+
+Implementation note: precompute `user_vocab.avg_interval` (Double, nullable) during `upsertVocab` so the `user_kanji` recompute is a single GROUP BY over the join, no JSONB scanning at query time.
+
+**Estimated JLPT/Kanken level** = highest level where user `known` covers ≥80% of that level's kanji/vocab (later).
 
 ### Slot-based field mapping (load-bearing design)
 
@@ -93,29 +134,36 @@ Before building: verify Nadeshiko's API terms re: rate limits and redistribution
 
 Rough priority order from current state. Estimates are solo-dev "focused day" units — halve for easy, double for messy.
 
-**P0 — unblock**
-1. Fix `KEPT_NOTE_FIELDS` in `frontend/src/App.tsx` (5 min). Currently hardcodes `["front", "Sentence", "ExpressionAudio", "SentenceAudio"]` — matches the test user's `Mining-JP` mapping but will silently drop fields for any other note type. Temporary; goes away with Settings UI (derive from the user's `field_mapping`).
+**Done (recent):** P0 `KEPT_NOTE_FIELDS` removed; `GET/PUT /api/users/me/config` endpoint; Settings UI for deck + field mapping; seeder no longer hardcodes a mapping.
 
 **P1 — close the sync loop**
-2. `GET /api/users/me/field-mapping` endpoint (30 min). Trivial; useful once Settings UI exists.
-3. Settings UI for field mapping (1–2 days). Fetches `modelNames` + `modelFieldNames` from AnkiConnect; user picks a field per canonical slot per note type; saves via `PUT /api/users/me/field-mapping`. Kill the hardcoded mapping in the seeder once this works.
-4. Proficiency engine (1–2 days). `deriveStatus` from cards (~1 hr); `user_kanji` recompute SQL (most of the time, debug against hand-counted truth). See "Planned migrations" below for the algorithm.
-5. Minimal dashboard UI (1–2 days). Table of `user_vocab` with retention colors, kanji grid colored by `known`. Ugly is fine.
+1. Proficiency engine Pass A (½ day). `deriveStatus` + `avg_interval` in `upsertVocab`. See "Planned migrations" below.
+2. Proficiency engine Pass B (½–1 day). `user_kanji` recompute via native `@Query`. Debug against hand-counted kanji.
+3. Minimal dashboard UI (1–2 days). Table of `user_vocab` with retention colors, kanji grid colored by `known`. Ugly is fine.
 
 **P2 — pay down**
-6. Gzip the sync payload (30 min). Unfiltered notes hit the 50MB ceiling; gzip → ~5MB. `server.compression.enabled=true` on Spring.
-7. Flyway/Liquibase (2–4 hrs). Already hit the `CREATE TABLE IF NOT EXISTS` trap once; do this before more schema changes.
-8. Unit tests for `FieldMapping` + `SyncService` (half day). Cheap insurance on load-bearing code.
+4. Sync performance (1–2 hrs). Hibernate can't batch INSERTs with `IDENTITY` generation. Switch `user_vocab` to `SEQUENCE` strategy or bypass Hibernate with a native bulk upsert via JDBC.
+5. Gzip the sync payload (30 min). Unfiltered notes hit the 50MB ceiling; gzip → ~5MB. `server.compression.enabled=true` on Spring.
+6. Flyway/Liquibase (2–4 hrs). Already hit the `CREATE TABLE IF NOT EXISTS` trap once; do this before more schema changes.
+7. Unit tests for `FieldMapping` + `SyncService` (half day). Cheap insurance on load-bearing code.
+8. Word/kanji frequency data. JMDICT only has coarse tags (`news1/2`, `ichi1/2`, `nf01`–`nf48`), and the `words.common` boolean is binary. Collapse these into a numeric frequency score for proper sort ordering in the detail panel word list. Consider an external frequency list (e.g. JPDB, Innocent Corpus) for finer granularity.
 
-**Weakest estimates:** Settings UI (#3) can balloon if you start designing instead of building. Proficiency engine SQL (#4) could be a half-day if it clicks, 3 days if you fight JPQL — drop to native `@Query` early.
+**Weakest estimates:** Pass B SQL (#2) could be a half-day if it clicks, 3 days if you fight JPQL — go native from the start.
 
 ## Planned migrations / future work
 
-- **Proficiency engine (Pass 2).** Currently `SyncService.upsertVocab` hardcodes `retention_status = NEW` and nothing populates `user_kanji`. Two pieces:
-  1. **Derive `retention_status` from `cards`** in `upsertVocab`. Walk the cards list: `queue == -1` → suspended (skip); `interval > 21 && lapses < 3` → KNOWN; any live card otherwise → SHAKY; all-suspended → SUSPENDED; no cards → NEW. Anki queue values: `-1` suspended, `0` new, `1` learning, `2` review, `3` day-learning.
-  2. **Recompute `user_kanji` at the end of `sync(...)`.** Per-user `INSERT ... ON CONFLICT DO UPDATE` from `kanji_words ⨝ words (common=TRUE) LEFT JOIN user_vocab`, grouped by `kanji_id`. `proficiency_score = known_count / common_word_count`, `known = score >= 0.5`. SQL-first via a `@Modifying @Query` on `UserKanjiRepository`; do not load into Java and recompute per-row. Threshold (0.5) and weighting of SHAKY (currently zero) are intentionally simple — tune after seeing real data.
+- **Proficiency engine (Pass 2).** Currently `SyncService.upsertVocab` hardcodes `retention_status = NEW`, doesn't compute `avg_interval`, and nothing populates `user_kanji`. Three pieces, shipped in two passes:
 
-  Order of work: (1) the real frontend → `/api/sync` round-trip already runs end-to-end with the test user; (2) implement `deriveStatus`; (3) implement the recompute query; (4) call it from `SyncService.sync` after the upsert loop.
+  *Pass A — per-word state in `upsertVocab`:*
+  1. **Derive `retention_status`** from the cards list (best-status-wins rules in "Proficiency model" above). Anki queue values: `-1` suspended, `0` new, `1` learning, `2` review, `3` day-learning. Card `type`: 0 new, 1 learning, 2 review, 3 relearning.
+  2. **Compute `avg_interval`** = mean of `card.interval` over cards with `queue != -1 && type > 0` (i.e. seen, non-suspended). Store as nullable Double on `user_vocab`; null when no qualifying cards. Add column to schema + entity.
+
+  Validate against psql before moving on: sync the test deck, eyeball a handful of `user_vocab` rows — known mature words should be KNOWN with high `avg_interval`; brand-new words should be NEW with null.
+
+  *Pass B — kanji aggregation:*
+  3. **Recompute `user_kanji` at end of `SyncService.sync`.** Per-user `INSERT ... ON CONFLICT (user_id, kanji_id) DO UPDATE` from `kanji_words ⨝ user_vocab` (no commonness filter), grouped by `kanji_id`. `avg_interval` aggregated across the user's vocab containing each kanji; `proficiency_score = 1 - 1/(avg/21 + 1)^2`; `known = score >= 0.5`. SQL-first via a `@Modifying @Query` on `UserKanjiRepository` — do not load into Java and aggregate per-row. Use native SQL, not JPQL.
+
+  Open question for Pass B: weight `user_vocab.avg_interval` rows equally (per-word) or by card count (per-card, matches kanjigrid more closely). Start equal-weight; revisit if scores look wrong on real data.
 
 ## Frontend (`frontend/`)
 
