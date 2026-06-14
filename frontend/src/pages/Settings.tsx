@@ -303,7 +303,7 @@ function SlotRow({
   return (
     <>
       <span className="text-muted-foreground text-sm">{slot}</span>
-      <Select value={value === "" ? NONE : value} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
+      <Select value={value === "" ? NONE : value} onValueChange={(v: string | null) => onChange(v === NONE || v === null ? "" : v)}>
         <SelectTrigger className={cn(TRIGGER_BASE, "w-full max-w-xs", !value && UNMAPPED_TRIGGER)}>
           <SelectValue />
         </SelectTrigger>

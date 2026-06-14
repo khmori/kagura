@@ -39,7 +39,7 @@ export function LevelCoverageBar({
     <Progress value={pct}>
       <ProgressLabel>{levelLabel} Coverage</ProgressLabel>
       <ProgressValue>
-        {known} / {total} kanji known — {pct}%
+        {() => `${known} / ${total} kanji known — ${pct}%`}
       </ProgressValue>
     </Progress>
   );
