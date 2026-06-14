@@ -34,8 +34,11 @@ public class Kanji {
 
     private Integer grade;
 
-    @Column(name = "jlpt_level") 
+    @Column(name = "jlpt_level")
     private Integer jlptLevel;
+
+    @Column(name = "kanken_level")
+    private Double kankenLevel;
 
     @Column(name = "stroke_count")
     private Integer strokeCount;

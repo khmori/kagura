@@ -68,11 +68,34 @@ public class SyncService {
 
     public List<UserKanjiDto> getUserKanji() {
         User user = userRepo.findByProviderAndProviderUserId("manual", "test-1").orElseThrow();
+        String mode = user.getStudyMode();
+
+        if ("jlpt".equals(mode)) {
+            return mapRows(kanjiRepo.findAllByJlptWithProficiency(user.getId()));
+        }
+        if ("kanken".equals(mode)) {
+            return mapRows(kanjiRepo.findAllByKankenWithProficiency(user.getId()));
+        }
+
         return userKanjiRepo.findByUserIdOrderByProficiencyScoreDesc(user.getId()).stream().map(uk -> {
             UserKanjiDto dto = new UserKanjiDto();
             dto.kanji = uk.getKanji().getKanji();
             dto.proficiencyScore = uk.getProficiencyScore();
             dto.known = uk.getKnown();
+            dto.jlptLevel = uk.getKanji().getJlptLevel();
+            dto.kankenLevel = uk.getKanji().getKankenLevel();
+            return dto;
+        }).toList();
+    }
+
+    private List<UserKanjiDto> mapRows(List<Object[]> rows) {
+        return rows.stream().map(row -> {
+            UserKanjiDto dto = new UserKanjiDto();
+            dto.kanji = (String) row[0];
+            dto.proficiencyScore = ((Number) row[1]).doubleValue();
+            dto.known = (Boolean) row[2];
+            dto.jlptLevel = row[3] != null ? ((Number) row[3]).intValue() : null;
+            dto.kankenLevel = row[4] != null ? ((Number) row[4]).doubleValue() : null;
             return dto;
         }).toList();
     }
@@ -112,6 +135,7 @@ public class SyncService {
         dto.meaning = kanji.getMeaning();
         dto.grade = kanji.getGrade();
         dto.jlptLevel = kanji.getJlptLevel();
+        dto.kankenLevel = kanji.getKankenLevel();
         dto.strokeCount = kanji.getStrokeCount();
         dto.words = words;
         return dto;

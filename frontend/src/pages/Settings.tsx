@@ -47,6 +47,7 @@ function SyncTab() {
   const [decks, setDecks] = useState<string[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<string | null>(config.selectedDeck);
   const [fieldMapping, setFieldMapping] = useState<FieldMapping>(config.fieldMapping);
+  const [studyMode, setStudyMode] = useState<"none" | "jlpt" | "kanken">(config.studyMode);
 
   const [modelsInDeck, setModelsInDeck] = useState<string[]>([]);
   const [fieldsByModel, setFieldsByModel] = useState<Record<string, string[]>>({});
@@ -131,7 +132,7 @@ function SyncTab() {
     setSaving(true);
     setSaveMsg(null);
     try {
-      const updated = { selectedDeck, fieldMapping };
+      const updated = { selectedDeck, fieldMapping, studyMode };
       await putUserConfig(updated);
       setConfig(updated);
       setSaveMsg("Saved.");
@@ -148,6 +149,23 @@ function SyncTab() {
 
   return (
     <div className="space-y-6">
+      <section>
+        <label className="mb-1.5 block text-sm font-medium">Study mode</label>
+        <p className="mb-1.5 text-xs text-muted-foreground">
+          Organize the kanji grid by certification level.
+        </p>
+        <Select value={studyMode} onValueChange={(v) => setStudyMode(v as "none" | "jlpt" | "kanken")}>
+          <SelectTrigger className={cn(TRIGGER_BASE, "w-72")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="jlpt">JLPT</SelectItem>
+            <SelectItem value="kanken">Kanken</SelectItem>
+          </SelectContent>
+        </Select>
+      </section>
+
       <section>
         <label className="mb-1.5 block text-sm font-medium">Deck to sync</label>
         <Select value={selectedDeck ?? ""} onValueChange={(v) => setSelectedDeck(v || null)}>

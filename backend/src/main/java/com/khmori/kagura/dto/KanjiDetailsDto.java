@@ -9,6 +9,7 @@ public class KanjiDetailsDto {
     public String[] meaning;
     public Integer grade;
     public Integer jlptLevel;
+    public Double kankenLevel;
     public Integer strokeCount;
     public List<WordEntry> words;
 

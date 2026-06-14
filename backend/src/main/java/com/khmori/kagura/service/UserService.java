@@ -19,6 +19,7 @@ public class UserService {
         UserConfig config = new UserConfig();
         config.selectedDeck = user.getSelectedDeck();
         config.fieldMapping = user.getFieldMapping();
+        config.studyMode = user.getStudyMode();
         return config;
     }
 
@@ -28,6 +29,9 @@ public class UserService {
         user.setSelectedDeck(config.selectedDeck);
         if (config.fieldMapping != null) {
             user.setFieldMapping(config.fieldMapping);
+        }
+        if (config.studyMode != null) {
+            user.setStudyMode(config.studyMode);
         }
         userRepo.save(user);
     }

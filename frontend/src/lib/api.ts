@@ -4,6 +4,7 @@ export type FieldMapping = Record<string, Record<string, string>>;
 export interface UserConfig {
   selectedDeck: string | null;
   fieldMapping: FieldMapping;
+  studyMode: "none" | "jlpt" | "kanken";
 }
 
 export const API_BASE = "http://localhost:8080";
@@ -12,6 +13,8 @@ export interface UserKanjiDto {
   kanji: string;
   proficiencyScore: number;
   known: boolean;
+  jlptLevel: number | null;
+  kankenLevel: number | null;
 }
 
 export async function getUserConfig(): Promise<UserConfig> {
@@ -42,6 +45,7 @@ export interface KanjiDetails {
   meaning: string[];
   grade: number | null;
   jlptLevel: number | null;
+  kankenLevel: number | null;
   strokeCount: number | null;
   words: WordEntry[];
 }

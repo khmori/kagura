@@ -26,6 +26,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class DataSeeder implements CommandLineRunner {
     private static final String KANJIDIC_PATH = "../dicts/kanjidic2-en-3.6.2.json";
     private static final String JMDICT_PATH = "../dicts/jmdict-eng-3.6.2.json";
+    private static final String JLPT_LEVEL_PATH = "../dicts/jlpt_level.json";
+    private static final String KANKEN_LEVEL_PATH = "../dicts/kanji_kentei_level.json";
 
     private final KanjiRepository kanjiRepository;
     private final WordRepository wordRepository;
@@ -45,15 +47,17 @@ public class DataSeeder implements CommandLineRunner {
 
         if (kanjiRepository.count() > 0) {
             System.out.println("Kanji table already seeded.");
-            return;
+        } else {
+            kanjiRepository.deleteAll();
+            kanjiRepository.flush();
+            wordRepository.deleteAll();
+            wordRepository.flush();
+            seedKanji();
+            seedWords();
+            seedKanjiWords();
         }
-        kanjiRepository.deleteAll();
-        kanjiRepository.flush();
-        wordRepository.deleteAll();
-        wordRepository.flush();
-        seedKanji();
-        seedWords();
-        seedKanjiWords();
+
+        seedLevels();
     }
 
     private void seedKanji() throws Exception {
@@ -225,6 +229,59 @@ public class DataSeeder implements CommandLineRunner {
         System.out.println("Flushing kanji-words join rows...");
         kanjiRepository.saveAll(kanjiByChar.values());
         System.out.println("Kanji-words seeded.");
+    }
+
+    // Assigns JLPT (N5–N1) and Kanken (10–1) levels to each kanji in the DB.
+    // Source: JSON files that map level names to character lists.
+    // KANJIDIC only has old 4-level JLPT data, so we wipe it and re-seed with
+    // the modern 5-level system. Kanken levels are new (no prior data to wipe).
+    // Runs once — skips on subsequent boots if kanken_level is already populated.
+    private void seedLevels() throws Exception {
+        if (kanjiRepository.countByKankenLevelIsNotNull() > 0) {
+            System.out.println("Kanji levels already seeded.");
+            return;
+        }
+
+        System.out.println("Seeding kanji levels...");
+
+        // Load all kanji into a lookup map (kanji string -> kanji DB entity), wipe stale KANJIDIC JLPT values
+        Map<String, Kanji> kanjiByChar = new HashMap<>();
+        for (Kanji k : kanjiRepository.findAll()) {
+            k.setJlptLevel(null);
+            kanjiByChar.put(k.getKanji(), k);
+        }
+
+        JsonNode jlptRoot = mapper.readTree(new File(JLPT_LEVEL_PATH));
+        for (JsonNode group : jlptRoot.get("groups")) {
+            String name = group.get("name").asText();
+            int level = Integer.parseInt(name.replaceAll("\\D+", ""));
+            String chars = group.get("characters").asText();
+            for (int i = 0; i < chars.length(); i++) {
+                Kanji k = kanjiByChar.get(String.valueOf(chars.charAt(i)));
+                if (k != null) k.setJlptLevel(level);
+            }
+        }
+
+        JsonNode kankenRoot = mapper.readTree(new File(KANKEN_LEVEL_PATH));
+        for (JsonNode group : kankenRoot.get("groups")) {
+            String name = group.get("name").asText();
+            double level = parseKankenLevel(name);
+            String chars = group.get("characters").asText();
+            for (int i = 0; i < chars.length(); i++) {
+                Kanji k = kanjiByChar.get(String.valueOf(chars.charAt(i)));
+                if (k != null) k.setKankenLevel(level);
+            }
+        }
+
+        kanjiRepository.saveAll(kanjiByChar.values());
+        System.out.println("Kanji levels seeded.");
+    }
+
+    // "Level 準2 Kanji" → 2.5, "Level 準1 Kanji" → 1.5, "Level 10 Kanji" → 10.0
+    private double parseKankenLevel(String groupName) {
+        if (groupName.contains("準2")) return 2.5;
+        if (groupName.contains("準1")) return 1.5;
+        return Double.parseDouble(groupName.replaceAll("\\D+", ""));
     }
 
     // Test user for Pass 1 dev. Idempotent — re-uses existing row on subsequent boots.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Callout } from "@/components/Callout";
 import { KanjiDetailsPanel } from "@/components/KanjiDetailsPanel";
-import { KanjiGrid } from "@/components/KanjiGrid";
+import { KanjiGrid, GroupedKanjiGrid } from "@/components/KanjiGrid";
 import { Button } from "@/components/ui/button";
 import { getUserKanji, type UserKanjiDto } from "@/lib/api";
 import { useConfig } from "@/lib/config-context";
@@ -51,7 +51,11 @@ export default function Home() {
         </Button>
       </section>
 
-      {grid.length > 0 && <KanjiGrid entries={grid} onSelectKanji={setSelectedKanji} />}
+      {grid.length > 0 && config.studyMode !== "none" ? (
+        <GroupedKanjiGrid entries={grid} mode={config.studyMode} onSelectKanji={setSelectedKanji} />
+      ) : grid.length > 0 ? (
+        <KanjiGrid entries={grid} onSelectKanji={setSelectedKanji} />
+      ) : null}
 
       {selectedKanji && <KanjiDetailsPanel kanji={selectedKanji} onClose={() => setSelectedKanji(null)} />}
     </div>

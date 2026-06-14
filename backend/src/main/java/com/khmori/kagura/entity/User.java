@@ -46,6 +46,9 @@ public class User {
     @Column(name = "selected_deck")
     private String selectedDeck;
 
+    @Column(name = "study_mode", nullable = false)
+    private String studyMode = "none";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }

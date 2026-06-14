@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS kanji (
     meaning TEXT[],
     grade INT,
     jlpt_level INT,
+    kanken_level DOUBLE PRECISION,
     stroke_count INT,
     frequency INT,
     radical_classical INT,
@@ -40,6 +41,8 @@ CREATE TABLE IF NOT EXISTS users (
     field_mapping    JSONB NOT NULL DEFAULT '{}'::jsonb,
     -- Anki deck the user has chosen to sync from. Null until Setup is completed.
     selected_deck    TEXT,
+    -- 'none' | 'jlpt' | 'kanken'
+    study_mode       TEXT NOT NULL DEFAULT 'none',
     created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (provider, provider_user_id)
 );
