@@ -22,8 +22,8 @@ public interface UserKanjiRepository extends JpaRepository<UserKanji, Integer> {
         SELECT
             uv.user_id,
             k.id,
-            1.0 - 1.0 / (POWER(AVG(uv.avg_interval) / 180.0 + 1.0), 2),
-            (1.0 - 1.0 / (POWER(AVG(uv.avg_interval) / 180.0 + 1.0), 2)) >= 0.5,
+            1.0 - 1.0 / POWER(AVG(uv.avg_interval) / 180.0 + 1.0, 2),
+            (1.0 - 1.0 / POWER(AVG(uv.avg_interval) / 180.0 + 1.0, 2)) >= 0.5,
             NOW()
         FROM user_vocab uv
         CROSS JOIN LATERAL regexp_split_to_table(uv.expression, '') AS ch
