@@ -49,7 +49,7 @@ export function KanjiGrid({ entries, onSelectKanji }: KanjiGridProps) {
   );
 }
 
-function formatKankenLevel(level: number): string {
+export function formatKankenLevel(level: number): string {
   if (level === 2.5) return "準2級";
   if (level === 1.5) return "準1級";
   return `${level}級`;

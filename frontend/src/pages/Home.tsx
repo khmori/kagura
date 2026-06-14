@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Callout } from "@/components/Callout";
 import { KanjiDetailsPanel } from "@/components/KanjiDetailsPanel";
 import { KanjiGrid, GroupedKanjiGrid } from "@/components/KanjiGrid";
+import { LevelCoverageBar } from "@/components/LevelCoverageBar";
 import { RecommendedWords } from "@/components/RecommendedWords";
 import { WordDetailView } from "@/components/WordDetailView";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,14 @@ export default function Home() {
           Probe
         </Button>
       </section>
+
+      {grid.length > 0 && config.studyMode !== "none" && config.targetLevel != null && (
+        <LevelCoverageBar
+          entries={grid}
+          studyMode={config.studyMode}
+          targetLevel={config.targetLevel}
+        />
+      )}
 
       {grid.length > 0 && <RecommendedWords onSelectWord={openWordFromRecommendations} />}
 
