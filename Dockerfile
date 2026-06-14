@@ -31,4 +31,4 @@ RUN if [ -n "$GITHUB_TOKEN" ]; then \
     rm /tmp/dicts.tar.gz
 
 EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
+CMD java ${JAVA_OPTS:-} -jar app.jar
