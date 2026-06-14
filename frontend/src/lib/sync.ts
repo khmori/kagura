@@ -1,5 +1,5 @@
 import { anki, type CardInfo, type FieldMap, type NoteInfo } from "./anki";
-import type { FieldMapping } from "./api";
+import { API_BASE, type FieldMapping } from "./api";
 
 // payload sent to the backend — mirrors com.khmori.kagura.dto.SyncRequest / IncomingNote
 export interface SyncRequest {
@@ -104,7 +104,7 @@ export async function sync(deckName: string, fieldMapping: FieldMapping) {
     `posting payload: ${syncRequest.notes.length} notes, ${(body.length / 1024 / 1024).toFixed(2)} MB`,
   );
 
-  const response = await fetch("http://localhost:8080/api/sync", {
+  const response = await fetch(`${API_BASE}/api/sync`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body,

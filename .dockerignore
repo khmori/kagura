@@ -1,0 +1,8 @@
+frontend/node_modules
+backend/target
+.git
+*.md
+sample_data
+testing
+scripts
+dicts
